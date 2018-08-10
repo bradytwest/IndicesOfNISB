@@ -1,3 +1,6 @@
+#Note: this has been saved for archive purposes only. Users should refer to 'nisb_functions.R' for the current version
+
+
 ########################################################################################
 # R program for computing indices of Non-Ignorable Selection Bias (nisb)
 # for non-probability samples, as outlined in Little et al. (2018). 
