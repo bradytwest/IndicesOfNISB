@@ -352,8 +352,10 @@ as.dummy = function(x,full_rank=T,transform_cols=NULL) {
         colnames(foo) = paste0(colnames(x)[i],colnames(foo));
         result = cbind(result,foo);
       } else {
-        cat("skipping column ", i,"; not a factor, logical, or integer");
-      }
+        cat("not modifiying column", colnames(x)[i],"; not a factor, logical, or integer");
+        result = cbind(result,x[,i]);
+        colnames(result)[ncol(result)] = colnames(x)[i];
+        }
     } 
     result = data.frame(result);
   } else {
