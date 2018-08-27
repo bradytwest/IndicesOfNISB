@@ -315,19 +315,20 @@ nisb_regress <- function(admin_statistics_selected) {
 ########################################################################################
 
 
-as.dummy = function(x,full_rank=T,transform_cols=NULL) {
+as.dummy = function(x,full_rank=T, transform_cols = NULL,show_warnings = T) {
   single.as.dummy <- function(x,full_rank) {
-    levels_x = levels(x);
-    1*matrix(rep(x,nlevels(x)) == rep(levels_x,each=length(x)),nrow=length(x),ncol=nlevels(x),dimnames=list(NULL,levels_x))[,(1+full_rank):length(levels_x),drop=F];
+    levels_x = setdiff(levels(x),NA);
+    num_levels_x = length(levels_x);
+    1*matrix(rep(x,num_levels_x) == rep(levels_x,each=length(x)),nrow=length(x),ncol=num_levels_x,dimnames=list(NULL,levels_x))[,(1+full_rank):length(levels_x),drop=F];
   }
   if("factor"%in%class(x)) {
-    if(length(full_rank)>1) {warning("ignoring all but first element of 'full_rank'");}
+    if(length(full_rank)>1 && show_warnings) {warning("ignoring all but first element of 'full_rank'");}
     result = data.frame(single.as.dummy(x,full_rank[1]));
   } else if("logical"%in%class(x)) {
-    if(length(full_rank)>1) {warning("ignoring all but first element of 'full_rank'");}
+    if(length(full_rank)>1 && show_warnings) {warning("ignoring all but first element of 'full_rank'");}
     result = data.frame(single.as.dummy(factor(x,levels=c(F,T)),full_rank[1]));
   } else if("integer"%in%class(x)) {
-    if(length(full_rank)>1) {warning("ignoring all but first element of 'full_rank'");}
+    if(length(full_rank)>1 && show_warnings) {warning("ignoring all but first element of 'full_rank'");}
     result = data.frame(single.as.dummy(factor(x,levels=sort(unique(x),decreasing = F)),full_rank[1]));
   } else if("data.frame"%in%class(x)) {
     result = NULL;
@@ -337,6 +338,7 @@ as.dummy = function(x,full_rank=T,transform_cols=NULL) {
       #First check if this vector should be returned 'as is':
       if((class(transform_cols)=="character"&&(!colnames(x)[i]%in%transform_cols))||(class(transform_cols)=="integer"&&(!i%in%transform_cols))) {
         result = cbind(result,x[,i]);
+        if(class(x[,i])=="factor" && show_warnings) {warning("coercing column ", colnames(x)[i], ", which is a factor column that is not in 'transform_cols', to numeric. Check the resulting coercion. \n");}
         colnames(result)[ncol(result)] = colnames(x)[i];
         #Now proceed through the possible ways to transform the vector. 
       } else if("factor"%in%class(x[,i])) {
@@ -352,14 +354,14 @@ as.dummy = function(x,full_rank=T,transform_cols=NULL) {
         colnames(foo) = paste0(colnames(x)[i],colnames(foo));
         result = cbind(result,foo);
       } else {
-        cat("not modifiying column", colnames(x)[i],"; not a factor, logical, or integer");
+        if(show_warnings) {cat("not modifiying column", colnames(x)[i],"; not a factor, logical, or integer\n");}
         result = cbind(result,x[,i]);
         colnames(result)[ncol(result)] = colnames(x)[i];
-        }
+      }
     } 
     result = data.frame(result);
   } else {
-    cat("returning x unmodified; no factors, logicals, or integers found");
+    if(show_warnings) {cat("returning x unmodified; no factors, logicals, or integers found\n");}
     result = x;
   }
   result;
