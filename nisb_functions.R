@@ -4,7 +4,7 @@
 #
 # Authors: Brady T. West, Phil Boonstra (bwest@umich.edu, philb@umich.edu)
 #
-# Date: 5/22/2018, 9:30am EST
+# Date: 9/12/2018, 10:30pm EST
 #
 # Function inputs:
 #
@@ -20,13 +20,13 @@
 #
 ### phi_character: (character) syntatically valid R expression that, when evaluated, yields ndraws of phi from some prior (defaults to "runif(ndraws)")
 #
-### smub_intervals_at: (numeric[s] in (0,1)) value(s) of phi at which to create model-based intervals of SMUB using the fitted phi-SMUB model (defaults to (0,0.5,1))
+### intervals_at: (numeric[s] in (0,1)) value(s) of phi at which to create model-based intervals of SMUB using the fitted phi-SMUB model (defaults to (0,0.5,1))
 #
 ### conf_level: (numeric in (0,1)) confidence levels to report (defaults to 0.95)
 #
 ### random_seed: (integer) random seed for reproducibility (defaults to random value)
 #
-### return_plot: (logical) should a SMUB plot be returned? (defaults to T)
+### return_plot: (logical or character ['SMAB','SMUB']) should a SMUB plot be returned? If T or "SMUB", a plot of SMUB against phi is returned. If "SMAB", a plot of SMAB against phi is returned. Otherwise no plot is returned. 
 #
 ### Value
 #Returns a list with the following named components: 'admin_statistics_selected', 'admin_statistics_no_selected', and 'random_seed' are as provided to the function;
@@ -39,10 +39,10 @@ nisb_bayes <- function(admin_statistics_selected,
                        admin_statistics_no_selected,
                        ndraws = 1e3, 
                        phi_character = "runif(ndraws)",
-                       smub_intervals_at = c(0, 0.5, 1), 
+                       intervals_at = c(0, 0.5, 1), 
                        conf_level = 0.95,
                        random_seed = sample(.Machine$integer.max,1), 
-                       return_plot = T)
+                       return_plot = "SMUB")
 {
   require(mnormt);require(MCMCpack);require(ggplot2);require(nlme);require(magrittr);
   set.seed(random_seed);
@@ -64,14 +64,18 @@ nisb_bayes <- function(admin_statistics_selected,
   var_Y.Z_selected = (n1 / (n1-npreds_as_dummy+1)) * drop(var_YZ_selected[1,1] - var_YZ_selected[1,-1]%*%solve(var_YZ_selected[-1,-1])%*%var_YZ_selected[-1,1])
   ZtZinv_selected = solve(rbind(c(n1,n1*mean_YZ_selected[-1]),cbind(n1*mean_YZ_selected[-1],(var_YZ_selected[-1,-1] * (n1-1) + n1 * tcrossprod(mean_YZ_selected[-1])))))
   
-  ##NonBayes-calculation: point estimates of SMUB(0), SMUB(0.5), SMUB(1.0)
+  ##NonBayes-calculation: point estimates of SMUB
   mean_X_selected = drop(beta_YZ.Z_selected%*%c(1,mean_YZ_selected[-1]));
   mean_X_no_selected = drop(beta_YZ.Z_selected%*%c(1,mean_Z_no_selected));
   var_X_selected = drop(tcrossprod(beta_YZ.Z_selected[-1],var_YZ_selected[-1,-1])%*%beta_YZ.Z_selected[-1]);
   mean_X_pop = (mean_X_selected*n1 + mean_X_no_selected*n0)/(n0+n1);
   cor_XY_selected = drop(beta_YZ.Z_selected[-1]%*%var_YZ_selected[1,-1])/sqrt(var_X_selected * var_YZ_selected[1,1]);
-  smub_point_est = (smub_intervals_at + (1 - smub_intervals_at) * cor_XY_selected) / (smub_intervals_at * cor_XY_selected + (1 - smub_intervals_at)) *   (mean_X_selected-mean_X_pop)/sqrt(var_X_selected);
-  names(smub_point_est) = smub_intervals_at;
+  smub_point_est = (intervals_at + (1 - intervals_at) * cor_XY_selected) / (intervals_at * cor_XY_selected + (1 - intervals_at)) * (mean_X_selected - mean_X_pop) / sqrt(var_X_selected);
+  names(smub_point_est) = intervals_at;
+  
+  ##NonBayes-calculation: point estimates of SMAB
+  smab_point_est = (intervals_at * (1 - cor_XY_selected^2)) / (intervals_at * cor_XY_selected + (1 - intervals_at)) * (mean_X_selected - mean_X_pop) / sqrt(var_X_selected);
+  names(smab_point_est) = intervals_at;
   
   #Draws of NP model coefficients
   var_Y.Z_selected_draws = (n1-npreds_as_dummy-1) * var_Y.Z_selected / rchisq(ndraws, n1 - npreds_as_dummy+1);
@@ -84,7 +88,6 @@ nisb_bayes <- function(admin_statistics_selected,
   var_X_selected_draws = rowSums(tcrossprod(beta_YZ.Z_selected_draws[,-1],var_YZ_selected[-1,-1])*beta_YZ.Z_selected_draws[,-1])
   mean_X_no_selected_draws = drop(beta_YZ.Z_selected_draws%*%c(1,mean_Z_no_selected));
   var_X_no_selected_draws = rowSums(tcrossprod(beta_YZ.Z_selected_draws[,-1],var_Z_no_selected)*beta_YZ.Z_selected_draws[,-1])
-  
   
   #Joint draws from distribution corresponding to selected population
   mean_XY_selected_draws = cbind(mean_X_selected_draws,mean_YZ_selected[1]);
@@ -109,92 +112,149 @@ nisb_bayes <- function(admin_statistics_selected,
   #Note: This next line makes a slight abuse of notation by overriding an existing variable with a new value. This is intentional
   var_X_no_selected_draws = 1 / rgamma(ndraws, (n0-1)/2, (n0-1) * var_X_no_selected_draws / 2);
   mean_X_no_selected_draws = rnorm(ndraws, mean_X_no_selected_draws, sqrt(var_X_no_selected_draws/n0));
+  
+  #SMUB(0) calculation (used in calculating SMAB = SMUB(phi) - SMUB(0))
+  smub0_scale_draws =  cor_XY_selected_draws * sqrt(var_XY_selected_draws_flattened[,3] / var_XY_selected_draws_flattened[,1]);
+  mean_Y_no_selected_draws = mean_XY_selected_draws[,2] + smub0_scale_draws * (mean_X_no_selected_draws - mean_XY_selected_draws[,1]);
+  cov_XY_no_selected_draws = var_XY_selected_draws_flattened[,2] + smub0_scale_draws * (var_X_no_selected_draws - var_XY_selected_draws_flattened[,1]);
+  beta_YX.X_no_selected_draws = cov_XY_no_selected_draws / var_X_no_selected_draws;
+  beta_Y0.X_no_selected_draws = mean_Y_no_selected_draws - beta_YX.X_no_selected_draws * mean_X_no_selected_draws;
+  mean_Y_all_draws = (n1 * mean_YZ_selected[1] + n0 * (beta_Y0.X_no_selected_draws + beta_YX.X_no_selected_draws * mean_X_no_selected_draws)) / (n0 + n1);
+  smub0_draws = (mean_YZ_selected[1] - mean_Y_all_draws) / sqrt(var_XY_selected_draws_flattened[,3])
+  
+  #SMUB(phi) calculation 
   smub_scale_draws = ((phi_draws + (1 - phi_draws) * cor_XY_selected_draws) / (phi_draws * cor_XY_selected_draws + (1 - phi_draws))) * sqrt(var_XY_selected_draws_flattened[,3] / var_XY_selected_draws_flattened[,1]);
   mean_Y_no_selected_draws = mean_XY_selected_draws[,2] + smub_scale_draws * (mean_X_no_selected_draws - mean_XY_selected_draws[,1]);
-  
-  var_Y_no_selected_draws = var_XY_selected_draws_flattened[,3] + smub_scale_draws^2 * (var_X_no_selected_draws - var_XY_selected_draws_flattened[,1]);
   cov_XY_no_selected_draws = var_XY_selected_draws_flattened[,2] + smub_scale_draws * (var_X_no_selected_draws - var_XY_selected_draws_flattened[,1]);
   beta_YX.X_no_selected_draws = cov_XY_no_selected_draws / var_X_no_selected_draws;
   beta_Y0.X_no_selected_draws = mean_Y_no_selected_draws - beta_YX.X_no_selected_draws * mean_X_no_selected_draws;
   mean_Y_all_draws = (n1 * mean_YZ_selected[1] + n0 * (beta_Y0.X_no_selected_draws + beta_YX.X_no_selected_draws * mean_X_no_selected_draws)) / (n0 + n1);
-  
   smub_draws = (mean_YZ_selected[1] - mean_Y_all_draws) / sqrt(var_XY_selected_draws_flattened[,3])
   
   all_draws = data.frame(phi = phi_draws, 
+                         phi_centered = phi_draws - mean(phi_draws),
                          smub = smub_draws, 
+                         smab = smub_draws - smub0_draws, 
                          population_mean_Y = mean_Y_all_draws, 
                          var_X_selected = var_XY_selected_draws_flattened[,1],
                          var_Y_selected = var_XY_selected_draws_flattened[,3],
                          cor_XY_selected = cor_XY_selected_draws);
   
-  #The error variance is modeled as an increasing function of phi: sigma^2 * (1 + |phi|^delta)
-  if(return_plot) {
-    if(length(unique(phi_draws)) > 5) {
-      all_draws$phi_centered = all_draws$phi - mean(all_draws$phi);
-      smub_vs_phi_mod = try(gls(smub ~ phi_centered + I(phi_centered^2) + I(phi_centered^3), data = all_draws, weights = varConstPower(form = ~phi, fixed = list(const = 1))), silent = T);
-      if(class(smub_vs_phi_mod)=="try-error") {
-        smub_vs_phi_mod = try(lm(smub ~ I(phi - mean(phi)) + I((phi-mean(phi))^2) + I((phi-mean(phi))^3), data = all_draws));
+  if(length(unique(phi_draws)) > 5) {
+    #SMUB ~ phi model
+    #The error variance is modeled as an increasing function of phi: sigma^2 * (lambda + |phi|^delta)^2
+    smub_vs_phi_mod = try(gls(smub ~ phi_centered + I(phi_centered^2) + I(phi_centered^3), data = all_draws, weights = varConstPower(form = ~phi)), silent = T);
+    if(class(smub_vs_phi_mod)=="try-error") {
+      smub_vs_phi_mod = try(lm(smub ~ phi_centered + I(phi_centered^2) + I(phi_centered^3), data = all_draws));
+    }
+    if(class(smub_vs_phi_mod) != "try-error") {
+      phi_seq = c(intervals_at, seq(min(phi_draws), max(phi_draws), length = min(length(unique(phi_draws)),101)));
+      predict_smub_vs_phi_mod = cbind(fit = predict(smub_vs_phi_mod, newdata = data.frame(phi_centered = phi_seq - mean(all_draws$phi))));
+      if(class(smub_vs_phi_mod)=="gls") {
+        variance_components = c(exp(attributes(smub_vs_phi_mod$apVar)$Pars["varStruct.const"]),
+                                attributes(smub_vs_phi_mod$apVar)$Pars["varStruct.power"], 
+                                exp(attributes(smub_vs_phi_mod$apVar)$Pars["lSigma"]));
+        se_prediction = variance_components["lSigma"]*(variance_components["varStruct.const"] + phi_seq^variance_components["varStruct.power"]);
+      } else {
+        warning("Could not fit linear model for smub ~ phi with heterogenous error variance; standard errors of prediction may be misspecified")
+        se_prediction = summary(smub_vs_phi_mod)$sigma;
       }
-      if(exists("smub_vs_phi_mod")) {
-        phi_seq = c(smub_intervals_at, seq(min(phi_draws), max(phi_draws), length = min(length(unique(phi_draws)),101)));
-        predict_smub_vs_phi_mod = cbind(fit = predict(smub_vs_phi_mod, newdata = data.frame(phi_centered = phi_seq - mean(all_draws$phi))));
-        if(class(smub_vs_phi_mod)=="gls") {
-          variance_components = c(attributes(smub_vs_phi_mod$apVar)$Pars[1], 
-                                  exp(attributes(smub_vs_phi_mod$apVar)$Pars[2]));
-          se_prediction = variance_components[2]*(1 + phi_seq^variance_components[1]);
-          #variance_components = exp(attributes(smub_vs_phi_mod$apVar)$Pars);
-          #variance_components[2] = log(variance_components[2]);
-          #se_prediction = variance_components[3]*(variance_components[1] + phi_seq^variance_components[2]);
-        } else {
-          warning("Could not fit linear model with heterogenous error variance; standard errors of prediction may be misspecified")
-          se_prediction = summary(smub_vs_phi_mod)$sigma;
-        }
-        predict_smub_vs_phi_mod = data.frame(cbind(phi = phi_seq, 
-                                                   lwr = predict_smub_vs_phi_mod[,"fit"] + qnorm((1-conf_level)/2) * se_prediction,
-                                                   predict_smub_vs_phi_mod, 
-                                                   upr = predict_smub_vs_phi_mod[,"fit"] + qnorm((1+conf_level)/2) * se_prediction));
-        
+      predict_smub_vs_phi_mod = data.frame(cbind(phi = phi_seq, 
+                                                 lwr = predict_smub_vs_phi_mod[,"fit"] + qnorm((1-conf_level)/2) * se_prediction,
+                                                 predict_smub_vs_phi_mod, 
+                                                 upr = predict_smub_vs_phi_mod[,"fit"] + qnorm((1+conf_level)/2) * se_prediction));
+      
+      predict_smub_vs_phi_mod_to_print = predict_smub_vs_phi_mod[1:length(intervals_at),];
+      colnames(predict_smub_vs_phi_mod_to_print) = c("phi",paste0(100*(1-conf_level)/2,"%"),"50%",paste0(100*(1+conf_level)/2,"%"));
+    } else {
+      predict_smub_vs_phi_mod_to_print = smub_vs_phi_mod;
+    }
+    #SMAB ~ phi model
+    #The error variance is modeled as an increasing function of phi: sigma^2 * (lambda + |phi|^delta)^2
+    smab_vs_phi_mod = try(gls(smab ~ phi_centered + I(phi_centered^2) + I(phi_centered^3), data = all_draws, weights = varConstPower(form = ~phi)), silent = T);
+    if(class(smab_vs_phi_mod)=="try-error") {
+      smab_vs_phi_mod = try(lm(smab ~ phi_centered + I(phi_centered^2) + I(phi_centered^3), data = all_draws));
+    }
+    if(class(smab_vs_phi_mod) != "try-error") {
+      phi_seq = c(intervals_at, seq(min(phi_draws), max(phi_draws), length = min(length(unique(phi_draws)),101)));
+      predict_smab_vs_phi_mod = cbind(fit = predict(smab_vs_phi_mod, newdata = data.frame(phi_centered = phi_seq - mean(all_draws$phi))));
+      if(class(smab_vs_phi_mod)=="gls") {
+        variance_components = c(exp(attributes(smab_vs_phi_mod$apVar)$Pars["varStruct.const"]),
+                                attributes(smab_vs_phi_mod$apVar)$Pars["varStruct.power"], 
+                                exp(attributes(smab_vs_phi_mod$apVar)$Pars["lSigma"]));
+        se_prediction = variance_components["lSigma"]*(variance_components["varStruct.const"] + phi_seq^variance_components["varStruct.power"]);
+      } else {
+        warning("Could not fit linear model for smab ~ phi with heterogenous error variance; standard errors of prediction may be misspecified")
+        se_prediction = summary(smab_vs_phi_mod)$sigma;
+      }
+      predict_smab_vs_phi_mod = data.frame(cbind(phi = phi_seq, 
+                                                 lwr = predict_smab_vs_phi_mod[,"fit"] + qnorm((1-conf_level)/2) * se_prediction,
+                                                 predict_smab_vs_phi_mod, 
+                                                 upr = predict_smab_vs_phi_mod[,"fit"] + qnorm((1+conf_level)/2) * se_prediction));
+      predict_smab_vs_phi_mod_to_print = predict_smab_vs_phi_mod[1:length(intervals_at),];
+      colnames(predict_smab_vs_phi_mod_to_print) = c("phi",paste0(100*(1-conf_level)/2,"%"),"50%",paste0(100*(1+conf_level)/2,"%"));
+    } else {
+      predict_smab_vs_phi_mod_to_print = smab_vs_phi_mod;
+    }
+  } else {
+    cat("ignoring values of 'intervals_at' and printing observed (not model-based) quantiles at each unique value of phi");
+    #SMUB
+    predict_smub_vs_phi_mod_to_print = tapply(all_draws[,"smub"], all_draws[,"phi"], quantile, p = c((1-conf_level)/2, 0.5, (1+conf_level)/2));
+    first_column = as.numeric(names(predict_smub_vs_phi_mod_to_print));
+    predict_smub_vs_phi_mod_to_print = cbind(first_column,matrix(unlist(tapply(all_draws[,"smub"], all_draws[,"phi"], quantile, p = c((1-conf_level)/2, 0.5, (1+conf_level)/2))),ncol = 3, byrow =T));
+    colnames(predict_smub_vs_phi_mod_to_print) = c("phi",paste0(100*(1-conf_level)/2,"%"),"50%",paste0(100*(1+conf_level)/2,"%"));
+    #SMAB
+    predict_smab_vs_phi_mod_to_print = tapply(all_draws[,"smab"], all_draws[,"phi"], quantile, p = c((1-conf_level)/2, 0.5, (1+conf_level)/2));
+    first_column = as.numeric(names(predict_smab_vs_phi_mod_to_print));
+    predict_smab_vs_phi_mod_to_print = cbind(first_column,matrix(unlist(tapply(all_draws[,"smab"], all_draws[,"phi"], quantile, p = c((1-conf_level)/2, 0.5, (1+conf_level)/2))),ncol = 3, byrow =T));
+    colnames(predict_smab_vs_phi_mod_to_print) = c("phi",paste0(100*(1-conf_level)/2,"%"),"50%",paste0(100*(1+conf_level)/2,"%"));
+  } 
+  
+  
+  if(isTRUE(return_plot)) {
+    return_plot = "SMUB";#Assume that SMUB is to be plotted if not specified
+  }
+  
+  if(return_plot %in% c("SMAB","SMUB","smab","smub")) {
+    return_plot = tolower(return_plot);
+    if(length(unique(phi_draws)) > 5) {
+      if(exists(paste0("predict_",return_plot,"_vs_phi_mod"))) {
+        ribbon_data = get(paste0("predict_",return_plot,"_vs_phi_mod"))[-(1:length(intervals_at)),]
         phi_plot = ggplot() + 
-          geom_ribbon(data = predict_smub_vs_phi_mod[-(1:length(smub_intervals_at)),], aes(x=phi, ymin = lwr, ymax = upr), fill = "grey70") +
-          geom_path(data = predict_smub_vs_phi_mod[-(1:length(smub_intervals_at)),], aes(x = phi, y = fit), size = 1.5) +
-          geom_point(aes(x = phi_draws, y = smub_draws), size = 0.4, col = "#33333370") +
+          geom_point(data = all_draws, aes_string(x = "phi", y = return_plot), size = 0.4, col = "#33333370") +
+          geom_ribbon(data = ribbon_data, aes(x = phi, ymin = lwr, ymax = upr), fill = "#ff000050") +
+          geom_path(data = ribbon_data, aes(x = phi, y = fit), size = 1., col = "#ff0000") +
           theme(legend.position = "top") + 
           labs(x=expression(phi),
-               y="SMUB") +
+               y=toupper(return_plot)) +
           theme(text = element_text(size = 18));
       } else {
-        warning("No suitable regression model found; no plot returned")
+        warning("No suitable regression model was found, so no plot returned")
       }
     } else {
-      phi_plot = ggplot() + 
-        geom_boxplot(aes(x = factor(phi_draws), y = smub_draws, group = factor(phi_draws)), size = 0.5, col = "#33333380") +
+      phi_plot = ggplot(data = all_draws) + 
+        geom_boxplot(aes_string(x = "factor(phi)", y = return_plot, group = "factor(phi)"), size = 0.5, col = "#33333380") +
         theme(legend.position = "top") + 
-        labs(x=expression(phi),
-             y="SMUB") +
+        labs(x = expression(phi),
+             y = toupper(return_plot)) +
         theme(text = element_text(size = 18));
     }
-  } 
-  if(exists("phi_plot")) {print(phi_plot);}
-  if(exists("predict_smub_vs_phi_mod")) {
-    predict_smub_vs_phi_mod_to_print = predict_smub_vs_phi_mod[1:length(smub_intervals_at),];
-    colnames(predict_smub_vs_phi_mod_to_print) = c("phi",paste0(100*(1-conf_level)/2,"%"),"50%",paste0(100*(1+conf_level)/2,"%"));
-  } else if(length(unique(phi_draws)) <= 5) {
-    cat("ignoring values of 'smub_intervals_at' and printing observed (not model-based) quantiles at each unique value");
-    predict_smub_vs_phi_mod_to_print = tapply(all_draws$smub, all_draws$phi, quantile, p = c((1-conf_level)/2, 0.5, (1+conf_level)/2));
-    first_column = as.numeric(names(predict_smub_vs_phi_mod_to_print));
-    predict_smub_vs_phi_mod_to_print = cbind(first_column,matrix(unlist(tapply(all_draws$smub, all_draws$phi, quantile, p = c((1-conf_level)/2, 0.5, (1+conf_level)/2))),ncol = 3, byrow =T));
-    colnames(predict_smub_vs_phi_mod_to_print) = c("phi",paste0(100*(1-conf_level)/2,"%"),"50%",paste0(100*(1+conf_level)/2,"%"));
-  } else {
-    predict_smub_vs_phi_mod_to_print = "No SMUB prediction model fit";
+  } else if(return_plot != F) {
+    cat("invalid value of 'return_plot'; this should either be a logical or 'SMAB' or 'SMUB'"); 
   }
+  if(exists("phi_plot")) {print(phi_plot);}
+  
   return(list(admin_statistics_selected = admin_statistics_selected,
               admin_statistics_no_selected = admin_statistics_no_selected,
               mean_X_pop = mean_X_pop,
               random_seed = random_seed, 
               all_draws = all_draws,
-              smub_summaries_marginal = quantile(smub_draws,p = c((1-conf_level)/2, 0.5, (1+conf_level)/2)),
+              smub_summaries_marginal = quantile(all_draws[,"smub"],p = c((1 - conf_level) / 2, 0.5, (1 + conf_level) / 2)),
+              smab_summaries_marginal = quantile(all_draws[,"smab"],p = c((1 - conf_level) / 2, 0.5, (1 + conf_level) / 2)),
               smub_summaries_conditional = predict_smub_vs_phi_mod_to_print,
-              smub_point_est = smub_point_est))
+              smab_summaries_conditional = predict_smab_vs_phi_mod_to_print,
+              smub_point_est = smub_point_est,
+              smab_point_est = smab_point_est))
   
 }
 
@@ -204,7 +264,7 @@ nisb_bayes <- function(admin_statistics_selected,
 #
 # Authors: Brady T. West, Phil Boonstra (bwest@umich.edu, philb@umich.edu)
 #
-# Date: August 10, 2018
+# Date: 9/12/2018, 10:30pm EST
 #
 # Function inputs:
 #
@@ -222,7 +282,7 @@ nisb_bayes <- function(admin_statistics_selected,
 #variable X and thus is only needed if 'X_statistics_selected' is not provided. If 'X_statistics_selected' *is* provided, then 
 #any value for 'admin_statistics_selected' will be ignored. 
 #
-### smub_intervals_at: (numeric[s] in (0,1)) value(s) of phi at which to create model-based intervals of SMUB using the fitted phi-SMUB model (defaults to (0,0.5,1))
+### intervals_at: (numeric[s] in (0,1)) value(s) of phi at which to create model-based intervals of SMUB using the fitted phi-SMUB model (defaults to (0,0.5,1))
 #
 ### Value
 #Returns a list with the following named components: mean_pop_X (as provided to the function), X_statistics_selected (either as provided to 
@@ -234,20 +294,23 @@ nisb_bayes <- function(admin_statistics_selected,
 nisb <- function(mean_X_pop,
                  X_statistics_selected,
                  admin_statistics_selected = NULL,
-                 smub_intervals_at = c(0, 0.5, 1))
+                 intervals_at = c(0, 0.5, 1))
 {
   
   if(missing(X_statistics_selected)) {
     X_statistics_selected = nisb_regress(admin_statistics_selected);
   }
   
-  smub_point_est = (smub_intervals_at + (1 - smub_intervals_at) * X_statistics_selected$cor_XY_selected) / (smub_intervals_at * X_statistics_selected$cor_XY_selected + (1 - smub_intervals_at)) *   (X_statistics_selected$mean_X_selected - mean_X_pop) / sqrt(X_statistics_selected$var_X_selected);
-  names(smub_point_est) = smub_intervals_at;
+  smub_point_est = (intervals_at + (1 - intervals_at) * X_statistics_selected$cor_XY_selected) / (intervals_at * X_statistics_selected$cor_XY_selected + (1 - intervals_at)) *   (X_statistics_selected$mean_X_selected - mean_X_pop) / sqrt(X_statistics_selected$var_X_selected);
+  smab_point_est = smub_point_est - X_statistics_selected$cor_XY_selected * (X_statistics_selected$mean_X_selected - mean_X_pop) / sqrt(X_statistics_selected$var_X_selected);
+  names(smub_point_est) = 
+    names(smab_point_est) = intervals_at;
   
   return(list(mean_X_pop = mean_X_pop,
               X_statistics_selected = X_statistics_selected,
               admin_statistics_selected = admin_statistics_selected,
-              smub_point_est = smub_point_est))
+              smub_point_est = smub_point_est,
+              smab_point_est = smab_point_est))
   
 }
 
