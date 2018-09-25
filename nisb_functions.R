@@ -127,7 +127,7 @@ nisb_bayes <- function(admin_statistics_selected,
   
   #Draw phi using provided string
   phi_draws = eval(parse(text=phi_character));
-  phi_draws = pmax(.Machine$double.eps, pmin(1 - .Machine$double.eps, phi_draws));
+  phi_draws = pmax(.Machine$double.eps, phi_draws);
   
   #Joint draws from distribution corresponding to non-selected population
   #Note: This next line makes a slight abuse of notation by overriding an existing variable with a new value. This is intentional
