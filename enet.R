@@ -1,4 +1,10 @@
-donet <- function(dat, outcome_col, family, alpha_seq = 1, n_cv_rep = 10, n_folds = 5, interactions = NULL){
+donet <- function(dat, 
+                  outcome_col, 
+                  family, 
+                  alpha_seq = 1, 
+                  n_cv_rep = 10, 
+                  n_folds = 5, 
+                  interactions = NULL){
   
   if(family == "gaussian" || (family %in% c("multinomial","binomial") && class(dat[,outcome_col]) == "factor")) {
     y_train = dat[,outcome_col];
@@ -79,7 +85,7 @@ donet <- function(dat, outcome_col, family, alpha_seq = 1, n_cv_rep = 10, n_fold
   
   coefs = std_coefs = coef(curr_fit)[,which_best_lambda]; 
   coefs[main_effect_names] = coefs[main_effect_names] / scale_x_train;
-  #coefs[1] = coefs[1]  - sum(center_x_train  * coefs[main_effect_names]) + sum(center_x_train[interactions_as.dummy[,1]] * center_x_train[interactions_as.dummy[,2]] * coefs[interaction_names]);
+  coefs[1] = coefs[1]  - sum(center_x_train  * coefs[main_effect_names]) + sum(center_x_train[interactions_as.dummy[,1]] * center_x_train[interactions_as.dummy[,2]] * coefs[interaction_names]);
   if(length(interactions)) {
     coefs[interaction_names] = coefs[interaction_names] / (scale_x_train[interactions_as.dummy[,1]]*scale_x_train[interactions_as.dummy[,2]]);
     for(k in 1:nrow(interactions_as.dummy)) {
