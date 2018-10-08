@@ -85,13 +85,14 @@ donet <- function(dat,
   
   coefs = std_coefs = coef(curr_fit)[,which_best_lambda]; 
   coefs[main_effect_names] = coefs[main_effect_names] / scale_x_train;
-  coefs[1] = coefs[1]  - sum(center_x_train  * coefs[main_effect_names]) + sum(center_x_train[interactions_as.dummy[,1]] * center_x_train[interactions_as.dummy[,2]] * coefs[interaction_names]);
+  coefs[1] = coefs[1]  - sum(center_x_train  * coefs[main_effect_names]);
   if(length(interactions)) {
-    coefs[interaction_names] = coefs[interaction_names] / (scale_x_train[interactions_as.dummy[,1]]*scale_x_train[interactions_as.dummy[,2]]);
+    coefs[interaction_names] = coefs[interaction_names] / (scale_x_train[interactions_as.dummy[,1]] * scale_x_train[interactions_as.dummy[,2]]);
     for(k in 1:nrow(interactions_as.dummy)) {
       coefs[main_effect_names[interactions_as.dummy[k,1]]] =  coefs[main_effect_names[interactions_as.dummy[k,1]]] - center_x_train[interactions_as.dummy[k,2]] * coefs[interaction_names[k]]; 
       coefs[main_effect_names[interactions_as.dummy[k,2]]] =  coefs[main_effect_names[interactions_as.dummy[k,2]]] - center_x_train[interactions_as.dummy[k,1]] * coefs[interaction_names[k]];
     }
+    coefs[1] = coefs[1] + sum(center_x_train[interactions_as.dummy[,1]] * center_x_train[interactions_as.dummy[,2]] * coefs[interaction_names]);
   }
   
   
