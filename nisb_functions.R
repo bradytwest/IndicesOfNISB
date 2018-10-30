@@ -26,7 +26,10 @@
 #
 ### random_seed: (integer) random seed for reproducibility (defaults to random value)
 #
-### return_plot: (logical or character ['SMAB','SMUB']) should a SMUB plot be returned? If T or "SMUB", a plot of SMUB against phi is returned. If "SMAB", a plot of SMAB against phi is returned. Otherwise no plot is returned. 
+### create_plot: (logical or character ['SMAB','SMUB']) should a SMUB plot be created? If T or "SMUB", a plot of SMUB against phi is returned. If "SMAB", a plot of SMAB against phi is returned. 
+# Otherwise no plot is printed. Depending on the value of 'return_plot_object_only' below, 
+#
+### return_plot_object_only: (logical) if TRUE, only the plot is returned. Defaults to FALSE
 #
 ### poly_degree: (integer) degree of polynomial function of phi to fit to SMUB/SMAB plot. If the correlation between x and y in the 
 #sampled units is close to zero and phi is close to 1, a degree of 10 or greater may be required to properly capture the relationship.
@@ -47,7 +50,8 @@ nisb_bayes <- function(admin_statistics_selected,
                        intervals_at = c(0, 0.5, 1), 
                        conf_level = 0.95,
                        random_seed = sample(.Machine$integer.max,1), 
-                       return_plot = "SMUB", 
+                       create_plot = "SMUB", 
+                       return_plot_object_only = F,
                        poly_degree = 6,
                        sig_digits_return = 5)
 {
@@ -246,52 +250,59 @@ nisb_bayes <- function(admin_statistics_selected,
     colnames(predict_smab_vs_phi_mod_to_print) = c("phi",paste0(100*(1-conf_level)/2,"%"),"50%",paste0(100*(1+conf_level)/2,"%"));
   } 
   
-  
-  if(isTRUE(return_plot)) {
-    return_plot = "SMUB";#Assume that SMUB is to be plotted if not specified
+  if(create_plot == F && return_plot_object_only) {
+    create_plot = T;#if the only request is to return the plot object, it must be created
   }
   
-  if(return_plot %in% c("SMAB","SMUB","smab","smub")) {
-    return_plot = tolower(return_plot);
-    if(exists(paste0("predict_",return_plot,"_vs_phi_mod"))) {
-      ribbon_data = get(paste0("predict_",return_plot,"_vs_phi_mod"))[-(1:length(intervals_at)),]
+  if(isTRUE(create_plot)) {
+    create_plot = "SMUB";#Assume that SMUB is to be plotted if not specified
+  }
+  
+  if(create_plot %in% c("SMAB","SMUB","smab","smub")) {
+    create_plot = tolower(create_plot);
+    if(exists(paste0("predict_",create_plot,"_vs_phi_mod"))) {
+      ribbon_data = get(paste0("predict_",create_plot,"_vs_phi_mod"))[-(1:length(intervals_at)),]
       phi_plot = ggplot() + 
-        geom_point(data = all_draws, aes_string(x = "phi", y = return_plot), size = 0.4, col = "#33333370") +
+        geom_point(data = all_draws, aes_string(x = "phi", y = create_plot), size = 0.4, col = "#33333370") +
         geom_ribbon(data = ribbon_data, aes(x = phi, ymin = lwr, ymax = upr), fill = "#ff000050") +
         geom_path(data = ribbon_data, aes(x = phi, y = fit), size = 1., col = "#ff0000") +
         theme(legend.position = "top") + 
         labs(x=expression(phi),
-             y=toupper(return_plot)) +
+             y=toupper(create_plot)) +
         theme(text = element_text(size = 18));
       #Don't overwhelm the plot device if there are lots of unique draws. 
     } else if(length(unique(phi_draws)) < 10) {
       phi_plot = ggplot(data = all_draws) + 
         geom_boxplot(aes_string(x = "factor(phi, labels = formatC(sort(unique(phi)), format = 'f', digits = 3))", 
-                                y = return_plot), 
+                                y = create_plot), 
                      size = 0.5, 
                      col = "#33333380") +
         theme(legend.position = "top") + 
         labs(x = expression(phi),
-             y = toupper(return_plot)) +
+             y = toupper(create_plot)) +
         theme(text = element_text(size = 18));
     }
-  } else if(return_plot != F) {
-    cat("invalid value of 'return_plot'; this should either be a logical or 'SMAB' or 'SMUB'"); 
+  } else if(create_plot != F) {
+    cat("invalid value of 'create_plot'; this should either be a logical or 'SMAB' or 'SMUB'"); 
   }
-  if(exists("phi_plot")) {print(phi_plot);}
+  if(!return_plot_object_only && create_plot != F && exists("phi_plot")) {print(phi_plot);}
   
-  return(list(admin_statistics_selected = admin_statistics_selected,
-              admin_statistics_no_selected = admin_statistics_no_selected,
-              mean_X_pop = mean_X_pop,
-              random_seed = random_seed, 
-              all_draws = all_draws,
-              smub_summaries_marginal = round(quantile(all_draws[,"smub"],p = c((1 - conf_level) / 2, 0.5, (1 + conf_level) / 2)),sig_digits_return),
-              smab_summaries_marginal = round(quantile(all_draws[,"smab"],p = c((1 - conf_level) / 2, 0.5, (1 + conf_level) / 2)),sig_digits_return),
-              smub_summaries_conditional = round(predict_smub_vs_phi_mod_to_print,sig_digits_return),
-              smab_summaries_conditional = round(predict_smab_vs_phi_mod_to_print,sig_digits_return),
-              smub_point_est = round(smub_point_est,sig_digits_return),
-              smab_point_est = round(smab_point_est),sig_digits_return))
-  
+  if(return_plot_object_only) {
+    phi_plot;
+  } else { 
+    return(list(admin_statistics_selected = admin_statistics_selected,
+                admin_statistics_no_selected = admin_statistics_no_selected,
+                mean_X_pop = mean_X_pop,
+                random_seed = random_seed, 
+                all_draws = all_draws,
+                smub_summaries_marginal = round(quantile(all_draws[,"smub"],p = c((1 - conf_level) / 2, 0.5, (1 + conf_level) / 2)),sig_digits_return),
+                smab_summaries_marginal = round(quantile(all_draws[,"smab"],p = c((1 - conf_level) / 2, 0.5, (1 + conf_level) / 2)),sig_digits_return),
+                smub_summaries_conditional = round(predict_smub_vs_phi_mod_to_print,sig_digits_return),
+                smab_summaries_conditional = round(predict_smab_vs_phi_mod_to_print,sig_digits_return),
+                smub_point_est = round(smub_point_est,sig_digits_return),
+                smab_point_est = round(smab_point_est),sig_digits_return));
+  }
+
 }
 
 ########################################################################################
@@ -306,7 +317,7 @@ nisb_bayes <- function(admin_statistics_selected,
 #
 ### mean_X_pop: (numeric) population mean of the administrative variable X
 #
-### X_statistics_selected: (list) list with three named components: mean_X_selected, var_X_selected, cor_XY_selected In order, these are 
+### X_statistics_selected: (list) list with three named components: mean_X_selected, var_X_selected, cor_XY_selected. In order, these are 
 #(i) the observed mean of the proxy variables X, (ii) the observed variance of the proxy variables X, and (iii) the observed correlation
 #between X and Y. These are the ingredients needed to caluclate SMUB for a given value of phi. However, if these are not provided, SMUB
 #can still be calculated using *administrative* proxy variables Z, defined in the next argument ('admin_statistics_selected'). Thus, 
