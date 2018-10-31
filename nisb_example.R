@@ -33,7 +33,7 @@ admin_statistics_selected = list(mean_YZ_selected = colMeans(data_selected),
 # Set parameters for the nisb_bayes() and nisb() functions.
 random_seed = 1;
 ndraws = 1e4; # number of draws for Bayesian approach
-return_plot = T;
+create_plot = T;
 conf_level = 0.95;
 intervals_at = c(0, 0.5, 1); # desired values of phi for generating predictions of SMUB
 poly_degree = 6; # degree of polynomial function of phi to fit to SMUB/SMAB plot. 
@@ -46,7 +46,7 @@ fit1 = nisb_bayes(admin_statistics_selected = admin_statistics_selected,
                   intervals_at = intervals_at, 
                   conf_level = conf_level, 
                   random_seed = random_seed,
-                  return_plot = return_plot, 
+                  create_plot = create_plot, 
                   poly_degree = poly_degree);
 
 # Alternative prior specification for Bayesian approach.
@@ -57,7 +57,7 @@ fit2 = nisb_bayes(admin_statistics_selected = admin_statistics_selected,
                   intervals_at = intervals_at, 
                   conf_level = conf_level, 
                   random_seed = random_seed,
-                  return_plot = return_plot, 
+                  create_plot = create_plot, 
                   poly_degree = poly_degree);
 
 # Compute 95% credible interval for SMUB & SMAB, given uniform prior.
