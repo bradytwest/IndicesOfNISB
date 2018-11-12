@@ -32,6 +32,9 @@ fit1 = glm(marcat_4 ~ factor(agecat) + factor(rwrkst) + factor(Race) + factor(ce
 # Save values of linear predictor (X, per paper) for selected sample
 xlp = fit1$linear.predictors;
 
+# Save estimated coefficients defining probit model
+coefs = fit1$coefficients;
+
 # Recommended alternative: use cv.glm function to compute cross-validated linear predictors, for input into biserial correlation functions
 # fit2 = cv.glm(marcat_4 ~ factor(agecat) + factor(rwrkst) + factor(Race) + factor(census_region) + 
 #                factor(educat) + factor(inccat) + factor(kidflag), 
