@@ -59,19 +59,21 @@ all_results =
                   ordered = T), 
          true_corr_uz1_pretty = 
            paste0("rho==",true_corr_uz1),
+         true_corr_z1z2_pretty = 
+           paste0("kappa==",true_corr_z1z2),
          avg_samp_frac_pretty = 
            paste0("E~group('[',S,']')==",avg_samp_frac)) %>%
   mutate(sd_wnr_samp = sqrt(var_wnr_samp), 
          log_var_wnr_samp = log(var_wnr_samp),
          aseb = (steb)) %>%
-  dplyr::select(array_id:sim_id, true_corr_uz1_pretty, eb, aseb, n_samp, resp_mech, resp_mech_detailed, RR, var_wnr_samp, AUC_wnr:RInd,cor_ywnr_samp, FMI:SMUB100, avg_samp_frac_pretty) %>%
-  #dplyr::select(array_id:sim_id, true_corr_uz1_pretty, eb, aseb, n_samp, resp_mech, resp_mech_detailed, RR, log_var_wnr_samp, AUC_wnr:RInd,cor_ywnr_samp, FMI:SMUB100) %>%
+  dplyr::select(array_id:sim_id, true_corr_uz1_pretty, true_corr_z1z2_pretty, eb, aseb, n_samp, resp_mech, resp_mech_detailed, bar_s, var_wnr_samp, AUC_wnr:Rind,cor_ywnr_samp, FMI:SMUB100, avg_samp_frac_pretty) %>%
+  #dplyr::select(array_id:sim_id, true_corr_uz1_pretty, eb, aseb, n_samp, resp_mech, resp_mech_detailed, bar_s, log_var_wnr_samp, AUC_wnr:Rind,cor_ywnr_samp, FMI:SMUB100) %>%
   gather(key = metric_name, value = metric_value, var_wnr_samp:SMUB100) %>%
   #gather(key = metric_name, value = metric_value, log_var_wnr_samp:SMUB100) %>%
   mutate(metric_name = factor(metric_name, 
-                              levels = c("RInd", "var_wnr_samp", "CV_wnr","AUC_wnr","pR2_wnr","cor_ywnr_samp","FMI","SMUB0", "SMUB50", "SMUB100"), 
+                              levels = c("Rind", "var_wnr_samp", "CV_wnr","AUC_wnr","pR2_wnr","cor_ywnr_samp","FMI","SMUB0", "SMUB50", "SMUB100"), 
                               labels = c("hat(R)","Var(eta^{-1})", "CV(eta)","hat(AUC)","psR^2", "Cor(Y[sel],eta^{-1})","FMI(mu[y])","SMUB(0)","SMUB(0.5)","SMUB(1.0)"),
-                              #levels = c("RInd", "log_var_wnr_samp", "CVRRSubgroup","AUC_wnr","pR2_wnr","cor_ywnr_samp","FMI","SMUB0", "SMUB50", "SMUB100"), 
+                              #levels = c("Rind", "log_var_wnr_samp", "CVRRSubgroup","AUC_wnr","pR2_wnr","cor_ywnr_samp","FMI","SMUB0", "SMUB50", "SMUB100"), 
                               #labels = c("hat(R)","log(Var(eta^{-1}))", "CV(S[sub])","hat(AUC)","psR^2", "Cor(Y[sel],eta^{-1})","FMI(mu[y])","SMUB(0)","SMUB(0.5)","SMUB(1.0)"),
                               ordered = T));
 

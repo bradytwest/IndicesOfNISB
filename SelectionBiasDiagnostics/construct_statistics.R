@@ -69,10 +69,10 @@ construct_statistics <-
              });
     
     if(length(predictor_cols)) {
-      pop_dat[,"wnr"] <- 1 / plogis(unlist(lapply(sampling_models,predict)));
+      pop_dat[,"inv_propensity"] <- 1 / plogis(unlist(lapply(sampling_models,predict)));
     } else {
       pop_dat <- 
-        full_join(pop_dat, pop_dat %>% group_by(sim_id) %>% summarize(wnr = 1/mean(samp_ind)))
+        full_join(pop_dat, pop_dat %>% group_by(sim_id) %>% summarize(inv_propensity = 1/mean(samp_ind)))
     }
     
     pop_dat <- 
@@ -99,9 +99,9 @@ construct_statistics <-
       left_join(pop_dat_summary,
                 data.frame(sim_id = as.numeric(names(sampling_models)), 
                            # Area Under the Curve of the Logistic Regression Predicting Selection (AUC)
-                           AUC_wnr = unlist(lapply(lapply(sampling_models,"[[","stats"),"[[","C")),
+                           AUC_selection = unlist(lapply(lapply(sampling_models,"[[","stats"),"[[","C")),
                            # Pseudo-R2 of the Logistic Regression Predicting Selection (pR2) 
-                           pR2_wnr = unlist(lapply(lapply(sampling_models,"[[","stats"),"[[","R2"))),
+                           pR2_selection = unlist(lapply(lapply(sampling_models,"[[","stats"),"[[","R2"))),
                 by = "sim_id");
     
     # + Coefficient of variation, R-indicator ----
@@ -110,11 +110,11 @@ construct_statistics <-
                 pop_dat %>%
                   group_by(sim_id) %>%
                   #dplyr::summarise(bar_s_subgroup = mean(samp_ind)) %>%#selection rate by population-based quintile of Z
-                  dplyr::summarise(CV_wnr = sd(1/wnr) / mean(1/wnr),
-                                   Rind = 1 - 2 * sd(1/wnr)) %>%#CV of propensities
+                  dplyr::summarise(CV_selection = sd(1/inv_propensity) / mean(1/inv_propensity),
+                                   RInd = 1 - 2 * sd(1/inv_propensity)) %>%#CV of propensities
                   ungroup() %>%
                   #filter(z_quintile == 1) %>%#we are only interested in CV, so only need one subgroup ( can be any)
-                  dplyr::select(sim_id, CV_wnr, Rind),
+                  dplyr::select(sim_id, CV_selection, RInd),
                 by = "sim_id");
     
     # Sampled population summaries ----
@@ -147,8 +147,8 @@ construct_statistics <-
                        cor_yhaty_samp = cor(y, yhat),
                        mean_y_samp = mean(y), 
                        var_y_samp = var(y) * (n_samp-1) / n_samp, 
-                       cor_ywnr_samp = cor(y, wnr), 
-                       var_wnr_samp = var(wnr)) %>%
+                       cor_yinv_propensity_samp = cor(y, inv_propensity), 
+                       var_inv_propensity_samp = var(inv_propensity)) %>%
       ungroup();
     
     
