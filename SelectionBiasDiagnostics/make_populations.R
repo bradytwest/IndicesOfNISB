@@ -96,10 +96,10 @@ make_populations <- function(true_corr_uz1,
   #z1 = fully observed variable 
   z1 <- true_corr_z1z2 * z2 + sqrt(1-true_corr_z1z2^2) * rnorm(n_sim * pop_size);
   #e = latent error term for outcome
-  e <- rnorm(n_sim * pop_size);
+  e <- sqrt(1 - true_corr_uz1^2) * rnorm(n_sim * pop_size);
   #regression coefficient for the outcome-given-auxiliary proxy model
   #(the intercept depends upon the nature of the outcome and is calculated below)
-  a1 <- true_corr_uz1 / sqrt(1 - true_corr_uz1^2);
+  a1 <- true_corr_uz1;
   #u = latent outcome
   #y = observed outcome (equivalent to u if !is_u_latent)
   if(is_u_latent) {

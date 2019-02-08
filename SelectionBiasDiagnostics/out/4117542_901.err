@@ -1,0 +1,60 @@
+Loading required package: methods
+Loading required package: lattice
+
+Attaching package: ‘mice’
+
+The following objects are masked from ‘package:base’:
+
+    cbind, rbind
+
+Loading required package: Hmisc
+Loading required package: survival
+Loading required package: Formula
+Loading required package: ggplot2
+
+Attaching package: ‘Hmisc’
+
+The following objects are masked from ‘package:base’:
+
+    format.pval, units
+
+Loading required package: SparseM
+
+Attaching package: ‘SparseM’
+
+The following object is masked from ‘package:base’:
+
+    backsolve
+
+── Attaching packages ─────────────────────────────────────── tidyverse 1.2.1 ──
+✔ tibble  1.4.2     ✔ purrr   0.2.4
+✔ tidyr   0.8.0     ✔ dplyr   0.7.4
+✔ readr   1.1.1     ✔ stringr 1.2.0
+✔ tibble  1.4.2     ✔ forcats 0.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ tidyr::complete()  masks mice::complete()
+✖ dplyr::filter()    masks stats::filter()
+✖ dplyr::lag()       masks stats::lag()
+✖ dplyr::select()    masks MASS::select()
+✖ dplyr::src()       masks Hmisc::src()
+✖ dplyr::summarize() masks Hmisc::summarize()
+
+Attaching package: ‘boot’
+
+The following object is masked from ‘package:msm’:
+
+    cav
+
+The following object is masked from ‘package:survival’:
+
+    aml
+
+The following object is masked from ‘package:lattice’:
+
+    melanoma
+
+Error in (function (true_corr_uz1, true_corr_z1z2, is_u_latent, true_mean_y,  : 
+  'true_corr_z1z2' must be in (-1,1)
+Calls: do.call -> <Anonymous>
+Execution halted
+srun: error: cn011: task 0: Exited with exit code 1

@@ -5,7 +5,7 @@ all_results_wide = try(read_csv("SelectionBiasDiagnostics/out/summary_stat1.csv"
 last_index = nrow(all_results_wide);
 n_sim_seq = seq_len(nrow(all_results_wide));
 
-remaining_array_seq = 2:(104 * 9);
+remaining_array_seq = 2:(152 * 6);
 remaining_results = data.frame(matrix(NA, 
                                       nrow = length(remaining_array_seq) * nrow(all_results_wide), 
                                       ncol = ncol(all_results_wide), 
@@ -63,90 +63,98 @@ all_results =
            paste0("kappa==",true_corr_z1z2),
          avg_samp_frac_pretty = 
            paste0("E~group('[',S,']')==",avg_samp_frac)) %>%
-  mutate(sd_wnr_samp = sqrt(var_wnr_samp), 
-         log_var_wnr_samp = log(var_wnr_samp),
-         aseb = (steb)) %>%
-  dplyr::select(array_id:sim_id, true_corr_uz1_pretty, true_corr_z1z2_pretty, eb, aseb, n_samp, resp_mech, resp_mech_detailed, bar_s, var_wnr_samp, AUC_wnr:Rind,cor_ywnr_samp, FMI:SMUB100, avg_samp_frac_pretty) %>%
-  #dplyr::select(array_id:sim_id, true_corr_uz1_pretty, eb, aseb, n_samp, resp_mech, resp_mech_detailed, bar_s, log_var_wnr_samp, AUC_wnr:Rind,cor_ywnr_samp, FMI:SMUB100) %>%
-  gather(key = metric_name, value = metric_value, var_wnr_samp:SMUB100) %>%
-  #gather(key = metric_name, value = metric_value, log_var_wnr_samp:SMUB100) %>%
+  mutate(sd_wnr_samp = sqrt(var_inv_propensity_samp), 
+         aseb = steb) %>%
+  dplyr::select(array_id:sim_id, true_corr_uz1_pretty, true_corr_z1z2_pretty, eb, aseb, n_samp, resp_mech, resp_mech_detailed, bar_s, var_inv_propensity_samp, AUC_selection:RInd,cor_yinv_propensity_samp, FMI:SMUB100, avg_samp_frac_pretty) %>%
+  gather(key = metric_name, value = metric_value, var_inv_propensity_samp:SMUB100) %>%
   mutate(metric_name = factor(metric_name, 
-                              levels = c("Rind", "var_wnr_samp", "CV_wnr","AUC_wnr","pR2_wnr","cor_ywnr_samp","FMI","SMUB0", "SMUB50", "SMUB100"), 
+                              levels = c("RInd", "var_inv_propensity_samp", "CV_selection","AUC_selection","pR2_selection","cor_yinv_propensity_samp","FMI","SMUB0", "SMUB50", "SMUB100"), 
                               labels = c("hat(R)","Var(eta^{-1})", "CV(eta)","hat(AUC)","psR^2", "Cor(Y[sel],eta^{-1})","FMI(mu[y])","SMUB(0)","SMUB(0.5)","SMUB(1.0)"),
-                              #levels = c("Rind", "log_var_wnr_samp", "CVRRSubgroup","AUC_wnr","pR2_wnr","cor_ywnr_samp","FMI","SMUB0", "SMUB50", "SMUB100"), 
-                              #labels = c("hat(R)","log(Var(eta^{-1}))", "CV(S[sub])","hat(AUC)","psR^2", "Cor(Y[sel],eta^{-1})","FMI(mu[y])","SMUB(0)","SMUB(0.5)","SMUB(1.0)"),
                               ordered = T));
 
 all_results_summarized <-
   all_results %>%
-  group_by(avg_samp_frac_pretty, true_corr_uz1, true_log_or_samp_y, true_log_or_samp_z, metric_name, resp_mech, resp_mech_detailed) %>%
+  group_by(avg_samp_frac, avg_samp_frac_pretty, true_corr_uz1, true_corr_uz1_pretty,true_corr_z1z2,true_corr_z1z2_pretty, true_log_or_samp_y, true_log_or_samp_z2, metric_name, resp_mech, resp_mech_detailed) %>%
   dplyr::summarize(median_diagnostic = median(metric_value),
                    median_aseb = median(aseb),
                    relative_iqr = (quantile(metric_value, 0.95) - quantile(metric_value, 0.05)) / median(metric_value));
 
-ggplot(data = filter(all_results_summarized, 
-                     metric_name %in% c("hat(R)","Var(eta^{-1})","psR^2","Cor(Y[sel],eta^{-1})","FMI(mu[y])")),
-       aes(x = median_diagnostic, 
-           y = median_aseb)) + 
-  geom_abline(intercept = 0, slope = 1) + 
-  geom_point(aes(shape = factor(true_corr_uz1),
-                 color = factor(resp_mech)), 
-             size = 2) + 
-  geom_path(aes(group = interaction(factor(true_corr_uz1), factor(resp_mech)),
-                linetype = factor(true_corr_uz1),
-                color = factor(resp_mech))) + 
-  facet_grid(avg_samp_frac_pretty ~ metric_name, labeller = label_parsed, scales = "free_x") + 
-  scale_color_brewer(palette = "Dark2",
-                     #scale_fill_grey(start = 0.2, end = 0.8,
-                     name = "Selection\nMechanism",
-                     labels = parse(text = c(bquote(.(paste0(levels(all_results_summarized$resp_mech),collapse="\n")))))) + 
-  scale_x_continuous(name = "Value of Diagnostic", breaks = pretty_breaks(n = 3), minor_breaks = NULL) + 
-  scale_y_continuous(name = "SEB", breaks = pretty_breaks(n = 4)) + 
-  scale_shape_discrete(name = expression(rho)) + 
-  scale_linetype_discrete(name = expression(rho)) + 
-  guides(shape = guide_legend(nrow = 2, order = 1), 
-         linetype = guide_legend(nrow = 2, order = 1),
-         color = guide_legend(nrow = 2, 
-                              label.hjust = 0,
-                              order = 2)) + 
-  #coord_cartesian(ylim = round(quantile(all_results_summarized$median_aseb,p = c(0.01, 0.975)) * 20) / 20) + 
-  theme(text = element_text(size = 14), 
-        panel.grid = element_line(color = "grey90"),
-        legend.position = "top");
-ggsave(paste0("../../NishimuraSims/fig1a.pdf"),device = "pdf",width = 8.5, height = 6*1.5+ 0.25);
+for(true_corr_z1z2_to_plot in c(0.0, 1.0)) {
+  file_suffix = ifelse(abs(0 - true_corr_z1z2_to_plot) < eps,"a","b");
+  
+  ggplot(data = filter(all_results_summarized, 
+                       metric_name %in% c("hat(R)","Var(eta^{-1})","psR^2","Cor(Y[sel],eta^{-1})","FMI(mu[y])"),
+                       (avg_samp_frac - 0.05) < eps),
+         aes(x = median_diagnostic, 
+             y = median_aseb)) + 
+    geom_abline(intercept = 0, slope = 1) + 
+    geom_point(aes(shape = factor(resp_mech),
+                   color = factor(resp_mech)), 
+               size = 2) + 
+    geom_path(aes(color = factor(resp_mech),
+                  linetype = factor(true_corr_z1z2))) + 
+    facet_grid(true_corr_uz1_pretty ~ metric_name, labeller = label_parsed, scales = "free_x") + 
+    scale_x_continuous(name = "Value of Diagnostic", breaks = pretty_breaks(n = 3), minor_breaks = NULL) + 
+    scale_y_continuous(name = "SEB", breaks = pretty_breaks(n = 4)) + 
+    scale_color_brewer(palette = "Dark2",
+                       name = "Selection\nMechanism",
+                       labels = parse_format()) + 
+    scale_shape_manual(values = c(15:18, 7:9), 
+                       name = "Selection\nMechanism",
+                       labels = parse_format()) + 
+    scale_linetype_discrete(name = expression(kappa)) + 
+    guides(linetype = guide_legend(nrow = 2, 
+                                   label.hjust = 0,
+                                   order = 1),
+           color = guide_legend(nrow = 2, 
+                                label.hjust = 0,
+                                order = 2),
+           shape = guide_legend(nrow = 2, 
+                                label.hjust = 0,
+                                order = 2)) + 
+    theme(text = element_text(size = 14), 
+          panel.grid = element_line(color = "grey90"),
+          legend.position = "top");
+  ggsave(paste0("../../NishimuraSims/fig1",file_suffix,".pdf"),device = "pdf",width = 8.5, height = 6*1.5+ 0.75);
+  
+  
+  ggplot(data = filter(all_results_summarized, 
+                       !metric_name %in% c("hat(R)","Var(eta^{-1})","psR^2","Cor(Y[sel],eta^{-1})","FMI(mu[y])"),
+                       (avg_samp_frac - 0.05) < eps),
+         aes(x = median_diagnostic, 
+             y = median_aseb)) + 
+    geom_abline(intercept = 0, slope = 1) + 
+    geom_point(aes(shape = factor(resp_mech),
+                   color = factor(resp_mech)), 
+               size = 2) + 
+    geom_path(aes(color = factor(resp_mech),
+                  linetype = factor(true_corr_z1z2))) + 
+    facet_grid(true_corr_uz1_pretty ~ metric_name, labeller = label_parsed, scales = "free_x") + 
+    scale_x_continuous(name = "Value of Diagnostic", breaks = pretty_breaks(n = 3), minor_breaks = NULL) + 
+    scale_y_continuous(name = "SEB", breaks = pretty_breaks(n = 4)) + 
+    scale_color_brewer(palette = "Dark2",
+                       name = "Selection\nMechanism",
+                       labels = parse_format()) + 
+    scale_shape_manual(values = c(15:18, 7:9), 
+                       name = "Selection\nMechanism",
+                       labels = parse_format()) + 
+    scale_linetype_discrete(name = expression(kappa)) + 
+    guides(linetype = guide_legend(nrow = 2, 
+                                   label.hjust = 0,
+                                   order = 1),
+           color = guide_legend(nrow = 2, 
+                                label.hjust = 0,
+                                order = 2),
+           shape = guide_legend(nrow = 2, 
+                                label.hjust = 0,
+                                order = 2)) + 
+    theme(text = element_text(size = 14), 
+          panel.grid = element_line(color = "grey90"),
+          legend.position = "top");
+  ggsave(paste0("../../NishimuraSims/fig2",file_suffix,".pdf"),device = "pdf",width = 8.5, height = 6*1.5+ 0.75);
+}
 
-
-ggplot(data = filter(all_results_summarized, 
-                     !metric_name %in% c("hat(R)","Var(eta^{-1})","psR^2","Cor(Y[sel],eta^{-1})","FMI(mu[y])")),
-       aes(x = median_diagnostic, 
-           y = median_aseb)) + 
-  geom_abline(intercept = 0, slope = 1) + 
-  geom_point(aes(shape = factor(true_corr_uz1),
-                 color = factor(resp_mech)), 
-             size = 2) + 
-  geom_path(aes(group = interaction(factor(true_corr_uz1), factor(resp_mech)),
-                linetype = factor(true_corr_uz1),
-                color = factor(resp_mech))) + 
-  facet_grid(avg_samp_frac_pretty ~ metric_name, labeller = label_parsed, scales = "free_x") + 
-  scale_color_brewer(palette = "Dark2",
-                     #scale_fill_grey(start = 0.2, end = 0.8,
-                     name = "Selection\nMechanism",
-                     labels = parse(text = c(bquote(.(paste0(levels(all_results_summarized$resp_mech),collapse="\n")))))) + 
-  scale_x_continuous(name = "Value of Diagnostic", breaks = pretty_breaks(n = 3), minor_breaks = NULL) + 
-  scale_y_continuous(name = "SEB", breaks = pretty_breaks(n = 4)) + 
-  scale_shape_discrete(name = expression(rho)) + 
-  scale_linetype_discrete(name = expression(rho)) + 
-  guides(shape = guide_legend(nrow = 2, order = 1), 
-         linetype = guide_legend(nrow = 2, order = 1),
-         color = guide_legend(nrow = 2, 
-                              label.hjust = 0,
-                              order = 2)) + 
-  #coord_cartesian(ylim = round(quantile(all_results_summarized$median_aseb,p = c(0.01, 0.975)) * 20) / 20) + 
-  theme(text = element_text(size = 14), 
-        panel.grid = element_line(color = "grey90"),
-        legend.position = "top");
-ggsave(paste0("../../NishimuraSims/fig2a.pdf"),device = "pdf",width = 8.5, height = 6*1.5+ 0.25);
-
+#Violin plots ----
 
 for(avg_samp_frac_to_plot in c(0.05, 0.25)) {
   

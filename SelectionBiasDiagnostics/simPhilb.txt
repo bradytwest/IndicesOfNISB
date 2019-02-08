@@ -9,7 +9,7 @@
 #SBATCH --job-name=pbTwoStage
 #SBATCH --time=0:10:00
 #SBATCH --mem-per-cpu=3700
-#SBATCH --array=1-936
+#SBATCH --array=1-912
 #SBATCH --cpus-per-task=1
 #SBATCH --nodes=1-1
 
