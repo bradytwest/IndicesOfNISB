@@ -1,0 +1,16 @@
+#!/bin/sh
+
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=philb@umich.edu
+#SBATCH --output=/home/philb/BradyWest/out/%A_%a.out
+#SBATCH --error=/home/philb/BradyWest/out/%A_%a.err
+#SBATCH --constraint=intel
+
+#SBATCH --job-name=pbTwoStage
+#SBATCH --time=0:10:00
+#SBATCH --mem-per-cpu=3700
+#SBATCH --array=1-864
+#SBATCH --cpus-per-task=1
+#SBATCH --nodes=1-1
+
+srun Rscript --vanilla /home/philb/BradyWest/run_sims.R
