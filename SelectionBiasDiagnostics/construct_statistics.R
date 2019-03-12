@@ -57,6 +57,7 @@ construct_statistics <-
         ungroup() %>%
         dplyr::select(sim_id, subj_id, colnames(pop_dat));
     }
+    n_sim = max(pop_dat[,"sim_id"])
     
     predictor_cols = 
       setdiff(colnames(pop_dat),c("sim_id","subj_id","y","u","samp_prob","samp_ind"));
@@ -69,10 +70,10 @@ construct_statistics <-
              });
     
     if(length(predictor_cols)) {
-      pop_dat[,"inv_propensity"] <- 1 / plogis(unlist(lapply(sampling_models,predict)));
+      pop_dat[,"propensity"] <- plogis(unlist(lapply(sampling_models,predict)));
     } else {
       pop_dat <- 
-        full_join(pop_dat, pop_dat %>% group_by(sim_id) %>% summarize(inv_propensity = 1/mean(samp_ind)))
+        full_join(pop_dat, pop_dat %>% group_by(sim_id) %>% summarize(propensity = mean(samp_ind)))
     }
     
     pop_dat <- 
@@ -109,11 +110,9 @@ construct_statistics <-
       left_join(pop_dat_summary, 
                 pop_dat %>%
                   group_by(sim_id) %>%
-                  #dplyr::summarise(bar_s_subgroup = mean(samp_ind)) %>%#selection rate by population-based quintile of Z
-                  dplyr::summarise(CV_selection = sd(1/inv_propensity) / mean(1/inv_propensity),
-                                   RInd = 1 - 2 * sd(1/inv_propensity)) %>%#CV of propensities
+                  dplyr::summarise(RInd = 1 - 2 * sd(propensity),
+                                   CV_selection = (-0.5 * RInd + 0.5) / mean(propensity)) %>%#CV of propensities
                   ungroup() %>%
-                  #filter(z_quintile == 1) %>%#we are only interested in CV, so only need one subgroup ( can be any)
                   dplyr::select(sim_id, CV_selection, RInd),
                 by = "sim_id");
     
@@ -147,8 +146,9 @@ construct_statistics <-
                        cor_yhaty_samp = cor(y, yhat),
                        mean_y_samp = mean(y), 
                        var_y_samp = var(y) * (n_samp-1) / n_samp, 
-                       cor_yinv_propensity_samp = cor(y, inv_propensity), 
-                       var_inv_propensity_samp = var(inv_propensity)) %>%
+                       cor_ypropensity_samp = cor(y, propensity),
+                       cor_yinv_propensity_samp = cor(y, 1/propensity), 
+                       var_inv_propensity_samp = var(1/propensity)) %>%
       ungroup();
     
     
