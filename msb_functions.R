@@ -37,7 +37,7 @@ require(MASS)
 
 #### NOTE: Notation throughout code uses 0=sampled, 1=not sampled
 
-mle2stepMSB <- function(x_0, y_0, xmean_1, xvar_1, sfrac, phi)
+mle2stepMSB <- function(x_0, y_0, xmean_1, xvar_1, sfrac, phi, verbose = F)
 {
   
   # Proxy vector, mean, and variance for selected sample
@@ -61,7 +61,9 @@ mle2stepMSB <- function(x_0, y_0, xmean_1, xvar_1, sfrac, phi)
   }
   result <- optimize(f, interval=c(-0.99, 0.99))
   rho_0 <- result$minimum
-  cat("Two-Step Biserial Correlation: ",rho_0,"\n") # two-step biserial correlation
+  if(verbose) {
+    cat("Two-Step Biserial Correlation: ",rho_0,"\n") # two-step biserial correlation
+  }
   
   # MLEs for distribution of U
   if (phi==1) {
@@ -86,7 +88,9 @@ mle2stepMSB <- function(x_0, y_0, xmean_1, xvar_1, sfrac, phi)
   ## E[Y]
   ymean <- sfrac*ymean_0 + (1-sfrac)*ymean_1
   ## MSB(phi)
-  cat("MSB(",phi,"):","\n")
+  if(verbose) {
+    cat("MSB(",phi,"):","\n");
+  }
   return(as.numeric(ymean_0 - ymean))
 }
 
@@ -181,10 +185,15 @@ bs.full <- function(x,y)
 #
 ### Value
 #Returns a list with the following named components: (i) setup is itself a list that returns the arguments passed to the function, 
-# (iii) coefs is the vector of coefficient values returned by the call to glm(), (iii) opt_fits is the vector of fitted values on the inverse
-# link scale without adjusting for overfitting, (iv) cv_fits is the cross-validated vector of fitted values on the inverse link scale. For example, 
-# with five-fold cross-validation, cv_fit[i] is the ith observation's fitted value using the 4/5ths of the data not in its fold, averaged over all 
-# n_cv_rep unique partitions. 
+# (ii) fitted_model is the final fitted glm object, (iii) coefs is the vector of coefficient values returned by the call to glm(), 
+# (iv) opt_fits_linpred is the vector of fitted values on the linear predictor scale without adjusting for overfitting, i.e. optimistic, 
+# (v) cv_fits_linpred is the vector of fitted values on the linear predictor scale averaged across the cross-validated folds, 
+# i.e. adjusting for overfitting, and (vi) cv_fits_resp is the vector of fitted values on the response (inverse link) scale averaged 
+# across the cross-validated folds, i.e. adjusting for overfitting. For binary outcome models, if the data are separated or subject 
+# to separation after partitiioning, some fitted linear predictors will be Inf or -Inf. In this case, the average across folds will 
+# also be Inf or -Inf (or NaN in the extremely pathological case that R attempts to average Inf with -Inf). For this reason, one might 
+# consider averaging instead on the response scale, i.e. using cv_fits_resp instead of cv_fits_linpred, and then calculating the 
+# link of the cv_fits_resp. 
 ########################################################################################
 
 cv.glm <- function(formula, 
@@ -194,23 +203,6 @@ cv.glm <- function(formula,
                    n_folds = 5, 
                    ...){
   
-  #10/30/18 note: I experimented with whether it makes more sense to average over the fitted linear predictors for 
-  #each partition (then taking the inverse link of the average to translate back to the response sale), or simply
-  #taking the average over the fitted response directly. I settled on the second option specifically because, in cases
-  #of separation in logistic regression, some fitted linear predictors will be Inf or -Inf, which then causes the first
-  #approach to yield exact 0's or 1's. The commented code below indicates this experimentation, which I left in case we
-  #want to revisit. 
-  
-  #if(isTRUE(all.equal(family, "gaussian")) || isTRUE(all.equal(family, gaussian(link = "identity")))) {
-  inverse_link = 
-    link = function(x) {x;}
-  #} else if(isTRUE(all.equal(family, "binomial")) || isTRUE(all.equal(family, binomial(link = "logit")))) {
-  #  link = function(x) {qlogis(x);}
-  #  inverse_link = function(x) {plogis(x);}
-  #} else if(isTRUE(all.equal(family, binomial(link = "probit")))) {
-  #  link = function(x) {qnorm(x);}
-  #  inverse_link = function(x) {pnorm(x);}
-  #} 
   
   n_train = nrow(data);
   foldid = matrix(NA,n_train,n_cv_rep);
@@ -218,7 +210,8 @@ cv.glm <- function(formula,
     foldid[,i] = sample(rep(1:n_folds,length = n_train));
   }
   
-  store_cv_fits = numeric(n_train);
+  store_cv_fits_resp = 
+    store_cv_fits_linpred = numeric(n_train);
   
   for(i in 1:n_cv_rep) {
     for(j in 1:n_folds) {
@@ -228,32 +221,30 @@ cv.glm <- function(formula,
                      family = family, 
                      data = data[which_train,],
                      ...);
-      store_cv_fits[which_test] = 
-        store_cv_fits[which_test]  + 
-        link(predict(curr_fit, newdata = data[which_test,], type = 'response')) / n_cv_rep;
+      store_cv_fits_resp[which_test] = 
+        store_cv_fits_resp[which_test]  + 
+        predict(curr_fit, newdata = data[which_test,], type = 'response') / n_cv_rep;
+      store_cv_fits_linpred[which_test] = 
+        store_cv_fits_linpred[which_test]  + 
+        predict(curr_fit, newdata = data[which_test,], type = 'link') / n_cv_rep;
     }
   } 
-  
-  #cv_fits = inverse_link(store_cv_fits);
-  cv_fits = store_cv_fits;
   
   curr_fit = glm(formula = formula,
                  family = family, 
                  data = data,
                  ...);
   
-  coefs = coef(curr_fit);
-  
-  opt_fits = as.numeric(predict(curr_fit, newdata = data, type = 'response'));
-  
   return(list(setup = list(formula = formula, 
                            family = family,
                            data = data,
                            n_cv_rep = n_cv_rep, 
                            n_folds = n_folds), 
-              coefs = coefs, 
-              opt_fits = opt_fits,
-              cv_fits = cv_fits));
+              fitted_model = curr_fit,
+              coefs = coef(curr_fit), 
+              opt_fits_linpred = as.numeric(predict(curr_fit, newdata = data, type = 'link')),
+              cv_fits_linpred = store_cv_fits_linpred,
+              cv_fits_resp = store_cv_fits_resp));
   
 }
 
