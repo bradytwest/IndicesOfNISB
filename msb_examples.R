@@ -35,17 +35,6 @@ xlp = fit1$linear.predictors;
 # Save estimated coefficients defining probit model
 coefs = fit1$coefficients;
 
-# Recommended alternative: use cv.glm function to compute cross-validated linear predictors, for input into biserial correlation functions
-# fit2 = cv.glm(marcat_4 ~ factor(agecat) + factor(rwrkst) + factor(Race) + factor(census_region) + 
-#                factor(educat) + factor(inccat) + factor(kidflag), 
-#              family = binomial(link = "probit"), 
-#              data = selected, 
-#              n_cv_rep = 10, 
-#              n_folds = 5)
-
-# Save values of cross-validated linear predictor from cv.glm (X, per paper) for selected sample
-# xlp = fit2.cv_fits;
-
 # If microdata are available for the non-selected sample, compute sufficient statistics on X
 not.selected = as.dummy(data_all[which(data_all[,sampling_col]==0 & rowSums(is.na(data_all[,c(predvar_cols)]))==0),predvar_cols],transform_cols = predvar_cols_as_factors);
 not.selected.mat = cbind(rep(1,dim(not.selected)[1]),as.matrix(not.selected));
