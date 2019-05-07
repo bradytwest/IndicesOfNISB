@@ -7,7 +7,7 @@
 # Phil Boonstra (philb@umich.edu)
 # Brady West (bwest@umich.edu)
 #
-# Version: November 7, 2018
+# Version: May 7, 2019
 ####################################################################################
 
 # Libraries
@@ -37,7 +37,7 @@ require(MASS)
 
 #### NOTE: Notation throughout code uses 0=sampled, 1=not sampled
 
-mle2stepMSB <- function(x_0, y_0, xmean_1, xvar_1, sfrac, phi, verbose = F)
+mle2stepMSB <- function(x_0, y_0, xmean_1, xvar_1, sfrac, phi, verbose = T)
 {
   
   # Proxy vector, mean, and variance for selected sample
@@ -175,7 +175,7 @@ bs.full <- function(x,y)
 ### family (character) same as 'family' argument of glm(). Note that glm() has a different and slightly more flexible implementation 
 ### of family than glmnet::glmnet(). Thus, 'family' in this wrapper function is different than 'family' in the donet() wrapper function above.
 #
-### data (data.frame or other alteratnive) same as 'data' argument of glm()
+### data (data.frame or other alternative) same as 'data' argument of glm()
 #
 ###n_cv_rep = 10 (integer) number of unique partitions to create
 #
@@ -248,5 +248,74 @@ cv.glm <- function(formula,
   
 }
 
+########################################################################################
+# R program for vectors or columns of a data.frame into dummy variables
+#
+# Authors: Brady T. West, Phil Boonstra (bwest@umich.edu, philb@umich.edu)
+#
+# Date: 4/25/2018, 10:19am EST
+#
+# Function inputs:
+#
+###x (any R object with class "factor", "logical", "integer", or "data.frame"). This should contain the data that will be transformed
+#
+###full_rank (logical) should a full_rank version be returned or not? If not, the smallest category from each transformed variable will be dropped. 
+#Defaults to T
+#
+###transform_cols (vector) the column numbers or labels that should be transformed. Default behavior is to try to transform all columns 
+#(however, only factors, logicals, or integers will still be transformed)
+########################################################################################
 
+
+as.dummy = function(x,full_rank=T, transform_cols = NULL,show_warnings = T) {
+  single.as.dummy <- function(x,full_rank) {
+    levels_x = setdiff(levels(x),NA);
+    num_levels_x = length(levels_x);
+    1*matrix(rep(x,num_levels_x) == rep(levels_x,each=length(x)),nrow=length(x),ncol=num_levels_x,dimnames=list(NULL,levels_x))[,(1+full_rank):length(levels_x),drop=F];
+  }
+  if("factor"%in%class(x)) {
+    if(length(full_rank)>1 && show_warnings) {warning("ignoring all but first element of 'full_rank'");}
+    result = data.frame(single.as.dummy(x,full_rank[1]));
+  } else if("logical"%in%class(x)) {
+    if(length(full_rank)>1 && show_warnings) {warning("ignoring all but first element of 'full_rank'");}
+    result = data.frame(single.as.dummy(factor(x,levels=c(F,T)),full_rank[1]));
+  } else if("integer"%in%class(x)) {
+    if(length(full_rank)>1 && show_warnings) {warning("ignoring all but first element of 'full_rank'");}
+    result = data.frame(single.as.dummy(factor(x,levels=sort(unique(x),decreasing = F)),full_rank[1]));
+  } else if("data.frame"%in%class(x)) {
+    result = NULL;
+    if(is.null(transform_cols)) {transform_cols = 1:ncol(x);}
+    full_rank = rep(full_rank,length=ncol(x));
+    for(i in 1:ncol(x)) {
+      #First check if this vector should be returned 'as is':
+      if((class(transform_cols)=="character"&&(!colnames(x)[i]%in%transform_cols))||(class(transform_cols)=="integer"&&(!i%in%transform_cols))) {
+        result = cbind(result,x[,i]);
+        if(class(x[,i])=="factor" && show_warnings) {warning("coercing column ", colnames(x)[i], ", which is a factor column that is not in 'transform_cols', to numeric. Check the resulting coercion. \n");}
+        colnames(result)[ncol(result)] = colnames(x)[i];
+        #Now proceed through the possible ways to transform the vector. 
+      } else if("factor"%in%class(x[,i])) {
+        foo = single.as.dummy(x[,i],full_rank[i]);
+        colnames(foo) = paste0(colnames(x)[i],colnames(foo));
+        result = cbind(result,foo);
+      } else if("logical"%in%class(x[,i])) {
+        foo = single.as.dummy(factor(x[,i],levels=c(F,T)),full_rank[i]);
+        colnames(foo) = paste0(colnames(x)[i],colnames(foo));
+        result = cbind(result,foo);
+      } else if("integer"%in%class(x[,i])) {
+        foo = single.as.dummy(factor(x[,i],levels=sort(unique(x[,i]),decreasing = F)),full_rank[i]);
+        colnames(foo) = paste0(colnames(x)[i],colnames(foo));
+        result = cbind(result,foo);
+      } else {
+        if(show_warnings) {cat("not modifiying column", colnames(x)[i],"; not a factor, logical, or integer\n");}
+        result = cbind(result,x[,i]);
+        colnames(result)[ncol(result)] = colnames(x)[i];
+      }
+    } 
+    result = data.frame(result);
+  } else {
+    if(show_warnings) {cat("returning x unmodified; no factors, logicals, or integers found\n");}
+    result = x;
+  }
+  result;
+}
 

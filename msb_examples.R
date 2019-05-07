@@ -3,7 +3,7 @@
 #
 # AUTHOR: Brady T. West (bwest@umich.edu)
 #
-# Version: November 2018
+# Version: May 7, 2019
 #########################################
 
 # Load functions for Bayesian approach from arbitrary directory
@@ -42,10 +42,20 @@ ns.xlp = not.selected.mat %*% coefs;
 xmean.ns = mean(ns.xlp); xmean.ns # NOTE: may simply be available for non-selected cases as an alternative
 xvar.ns = var(ns.xlp); xvar.ns # NOTE: may simply be available for non-selected cases as an alternative
 
-# MSB analyses for females (unique sampling fraction)
+# MSB analyses for females (unique sampling fraction); NO CROSS-VALIDATION
+
 mle2stepMSB(x_0=xlp, y_0=y, xmean_1=xmean.ns, xvar_1=xvar.ns, sfrac=0.817, phi=0)
 mle2stepMSB(x_0=xlp, y_0=y, xmean_1=xmean.ns, xvar_1=xvar.ns, sfrac=0.817, phi=0.5)
 mle2stepMSB(x_0=xlp, y_0=y, xmean_1=xmean.ns, xvar_1=xvar.ns, sfrac=0.817, phi=1)
+
+# MSB analyses for females (unique sampling fraction); WITH CROSS-VALIDATION
+
+cv.info <- cv.glm(formula = marcat_4 ~ factor(agecat) + factor(rwrkst) + factor(Race) + factor(census_region) + factor(educat) + factor(inccat) + factor(kidflag), family = binomial(link = "probit"), data = selected)
+xlp.cv <- cv.info$cv_fits_linpred
+
+mle2stepMSB(x_0=xlp.cv, y_0=y, xmean_1=xmean.ns, xvar_1=xvar.ns, sfrac=0.817, phi=0)
+mle2stepMSB(x_0=xlp.cv, y_0=y, xmean_1=xmean.ns, xvar_1=xvar.ns, sfrac=0.817, phi=0.5)
+mle2stepMSB(x_0=xlp.cv, y_0=y, xmean_1=xmean.ns, xvar_1=xvar.ns, sfrac=0.817, phi=1) 
 
 
 ###########################################################################################
