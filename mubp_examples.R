@@ -1,5 +1,5 @@
 #########################################
-# EXAMPLES USING THE MSB FUNCTIONS
+# EXAMPLES USING THE MUBP FUNCTIONS
 #
 # AUTHOR: Brady T. West (bwest@umich.edu)
 #
