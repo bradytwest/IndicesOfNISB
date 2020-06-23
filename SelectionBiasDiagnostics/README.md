@@ -43,14 +43,16 @@ scenario
 
 <samp>run_sims.R</samp> is the script we used to do the entire simulation study. 
 Specifically, by setting `my.work.computer = F` on line 7 of this script, this 
-can be called multiple times by a SLURM batch script (<samp>run_sims.txt</samp>; see below). The results are written to a csv file in a subfolder called 'out'. 
+can be called multiple times by a SLURM batch script (<samp>run_sims.txt</samp>; see below). The results are written to a csv file in a subfolder called 'out'. Setting
+`my.work.computer = T` allows for running a single simulation on your local 
+machine.
 
 <samp>make_populations.R</samp> contains a function of the same name to simulate
 an arbitrary number of populations (and non-probability samples from each 
 population). 
 
 <samp>construct_statistics.R</samp> contains a function of the same name, which
-takes as input the output from a call to <samp>make_populations<samp> and returns
+takes as input the output from a call to <samp>make_populations</samp> and returns
 all of the diagnostics and error measures considered in the manuscript. 
 
 <samp>FMI_v.1.3.R</samp> was provided by Rafael Nishimura and computes the
