@@ -1,49 +1,69 @@
-########################################################################################
-# R script for creating a set of target populations, including sampling indicators generated according
-# to various sampling mechanisms
+################################################################################
+# R script for creating a set of target populations, including sampling indicators 
+# generated according to various sampling mechanisms
 #
-# Authors: Phil Boonstra (philb@umich.edu) starting from code written by Rebecca Andridge
+# Authors: Phil Boonstra (philb@umich.edu) starting from code written by 
+# Rebecca Andridge
 #
 # Date: 1/10/2019, 11:00am
 #
 # Function inputs:
 #
-### true_corr_ux1 (numeric in (-1,1)) equivalent to rho in the paper. This is the true generating linear correlation between the auxiliary 
-# variable x1 and a continuous variable u. No perfect correlations are allowed here. Note that y=u when 'is_u_latent == FALSE' (see next line)
+### true_corr_ux1 (numeric in (-1,1)) equivalent to rho in the paper. This is 
+# the true generating linear correlation between the auxiliary 
+# variable x1 and a continuous variable u. No perfect correlations are allowed 
+# here. Note that y=u when 'is_u_latent == FALSE' (see next line)
 #
-### true_corr_x1x2 (numeric in (-1,1]) equivalent to kappa in the paper. This is the true generating linear correlation between the auxiliary 
-# variables x1 and x2. Perfect positive correlation is allowed here, meaning that x1 and x2 are identically equal, in which case x2 offers no 
-# additional information and is not returned by the function. Perfect negative correlation, allowed statistically possible, is a degenerate
+### true_corr_x1x2 (numeric in (-1,1]) equivalent to kappa in the paper. This is 
+# the true generating linear correlation between the auxiliary 
+# variables x1 and x2. Perfect positive correlation is allowed here, meaning 
+# that x1 and x2 are identically equal, in which case x2 offers no 
+# additional information and is not returned by the function. Perfect negative 
+# correlation, although statistically possible, is a degenerate
 # situation and causes some issues downstream; it is not allowed by the function. 
 #
-### is_u_latent (logical) if TRUE, then u is a latent normal for a binary y, and y = (u>0). Otherwise, if FALSE, y = u. 
+### is_u_latent (logical) if TRUE, then u is a latent normal for a binary y, 
+# and y = (u>0). Otherwise, if FALSE, y = u. 
 #
-### true_mean_y (numeric; if 'is_u_latent' == TRUE, must be in (0,1)) the marginal mean of y in the target population, which is assumed to 
-# assumed to be the outcome of interst
+### true_mean_y (numeric; if 'is_u_latent' == TRUE, must be in (0,1)) the
+# marginal mean of y in the target population, which is assumed to 
+# assumed to be the outcome of interest
 #
-### true_log_or_samp_x2 (numeric) the log-odds ratio between the selection indicator and the auxiliary variable x2
+### true_log_or_samp_x2 (numeric) the log-odds ratio between the selection 
+# indicator and the auxiliary variable x2
 #
-### true_log_or_samp_y (numeric) the log-odds ratio between the selection indicator and y, which is assumed to be the outcome of interest
+### true_log_or_samp_y (numeric) the log-odds ratio between the selection 
+# indicator and y, which is assumed to be the outcome of interest
 #
-### avg_samp_frac (numeric in (0,1)) the marginal selection rate. avg_samp_frac * pop_size will be the expected number of observations
-#selected in each simulated target population. If specified, then 'true_baseline_log_odds_samp' (below) will be overwritten with an 
-#internally calculated value
+### avg_samp_frac (numeric in (0,1)) the marginal selection rate. 
+# avg_samp_frac * pop_size will be the expected number of observations
+# selected in each simulated target population. If specified, then 
+# 'true_baseline_log_odds_samp' (below) will be overwritten with an 
+# internally calculated value
 #
-### true_baseline_log_odds_samp (numeric) only used if avg_samp_frac is NULL or NA. This is the intercept of the logistic selection model
-#Defaults to NA
+### true_baseline_log_odds_samp (numeric) only used if avg_samp_frac is NULL 
+# or NA. This is the intercept of the logistic selection model
+# Defaults to NA
 #
-### n_sim (positive integer) number of iterations to run / target populations to construct. Defaults to 100
+### n_sim (positive integer) number of iterations to run / target populations 
+# to construct. Defaults to 100
 #
 ### pop_size (positive integer) size of target population. Defaults to 1e4
 #
 ### seed (positive integer) random seed. Defaults to 1
+#
 ### Value
-#Returns a list with the following named components: 'gen_params' is another list that simply returns all of the generating params, and
-#'pop_dat' is a data.frame with the following columns sim_id (integer label for which iteration / target population observation is in), 
-#subj_id (integer label for observations in this target population), y (value of outcome), x1, x2 (value of auxiliary variables), u (value of latent 
-#outcome, possibly equivalent to y), samp_prob (true, unknown sampling probability), samp_ind (sampling indicator). However, if x1 and x2 have 
-#correlation 1, meaning they are identically valued, only x1 will be returned. 
-########################################################################################
+#Returns a list with the following named components: 'gen_params' is another
+# list that returns all of the generating params, and
+# 'pop_dat' is a data.frame with the following columns sim_id (integer label 
+# for which iteration / target population observation is in), 
+# subj_id (integer label for observations in this target population), 
+# y (value of outcome), x1, x2 (value of auxiliary variables), 
+# u (value of latent outcome, possibly equivalent to y), 
+# samp_prob (true, unknown sampling probability), 
+# samp_ind (sampling indicator). However, if x1 and x2 have 
+# correlation 1, meaning they are identically valued, only x1 will be returned. 
+###############################################################################
 
 
 make_populations <- function(true_corr_ux1,
@@ -88,21 +108,21 @@ make_populations <- function(true_corr_ux1,
   }
   
   
-  # Create target population ----
+  # Create full population ----
   sim_id <- rep(seq_len(n_sim), each = pop_size);
   subj_id <- rep(seq_len(pop_size), times = n_sim);
-  #x1 = fully observed auxiliary variable for outcome 
+  # x1 = fully observed auxiliary variable for outcome 
   x1 <- rnorm(n_sim * pop_size);
-  #x2 = fully observed auxiliary variable for selection
+  # x2 = fully observed auxiliary variable for selection
   x2 <- true_corr_x1x2 * x1 + sqrt(1-true_corr_x1x2^2) * rnorm(n_sim * pop_size);
-  #u = latent outcome
-  #y = observed outcome (equivalent to u if !is_u_latent)
+  # u = latent outcome
+  # y = observed outcome (equivalent to u if !is_u_latent)
   if(is_u_latent) {
     u <- 
       qnorm(true_mean_y) * sqrt(1 + true_corr_ux1^2) + 
       true_corr_ux1 * x1 +
       sqrt(1 - true_corr_ux1^2) * rnorm(n_sim * pop_size);
-    y <- ifelse(u > 0, 1, 0);
+    y <- 1 * (u > 0);
   } else {
     y <- u <- 
       true_mean_y + 
@@ -111,9 +131,10 @@ make_populations <- function(true_corr_ux1,
   }
   
   # Selection probabilities ----
-  #Selection model linear predictor minus the intercept
+  # Selection model linear predictor minus the intercept
   linpred_except_intercept <- true_log_or_samp_x2 * x2 + true_log_or_samp_y * y;
-  #Solve for value of intercept that yields desired average selection rate in this population
+  # Solve for value of intercept that yields desired average selection rate in 
+  # this population
   if(!is.na(avg_samp_frac)) {
     if(is.numeric(avg_samp_frac)) {
       true_baseline_log_odds_samp <- uniroot(function(x) {mean(plogis(x + linpred_except_intercept)) - avg_samp_frac}, lower = -100, upper = 100)$root;
@@ -127,10 +148,11 @@ make_populations <- function(true_corr_ux1,
     }
   } 
   
-  #Expit of full linear predictor gives true sampling probabilities
+  # Expit of full linear predictor gives true sampling probabilities
   samp_prob <- plogis(true_baseline_log_odds_samp + linpred_except_intercept);
   
-  #If 'avg_samp_frac' was not specifically provided, fill in the implied value based upon a numerical estimate
+  # If 'avg_samp_frac' was not specifically provided, fill in the implied value
+  # based upon a numerical estimate
   if(is.na(avg_samp_frac[1])) {
     avg_samp_frac <- round(mean(samp_prob), 3);
   }
@@ -140,7 +162,7 @@ make_populations <- function(true_corr_ux1,
   samp_ind <- rbinom(n_sim * pop_size, 1, samp_prob);
   
   if(true_corr_x1x2 < 1) {
-    pop_dat <- as.tibble(data.frame(sim_id = sim_id, 
+    pop_dat <- as_tibble(data.frame(sim_id = sim_id, 
                                     subj_id = subj_id,
                                     y = y, 
                                     x1 = x1,
@@ -149,7 +171,7 @@ make_populations <- function(true_corr_ux1,
                                     samp_prob = samp_prob, 
                                     samp_ind = samp_ind));
   } else {#If x1 and x2 are perfectly correlated, then no need to include both
-    pop_dat <- as.tibble(data.frame(sim_id = sim_id, 
+    pop_dat <- as_tibble(data.frame(sim_id = sim_id, 
                                     subj_id = subj_id,
                                     y = y, 
                                     x1 = x1,
