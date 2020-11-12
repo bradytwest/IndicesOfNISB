@@ -3,7 +3,7 @@
 #
 # AUTHOR: Brady T. West (bwest@umich.edu)
 #
-# Version: August 15, 2019
+# Version: November 11, 2020
 #########################################
 
 # Load functions for Bayesian approach from arbitrary directory
