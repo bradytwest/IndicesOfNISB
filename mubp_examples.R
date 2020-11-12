@@ -66,7 +66,7 @@ mle2stepMUBP(x_0=xlp.cv, y_0=y, xmean_1=xmean.ns, xvar_1=xvar.ns, sfrac=0.817, p
 y = data_all[,depvar_col]
 y[which(data_all[,sampling_col]==0)] <- NA
 
-# Fit arbitrary probit regression model to entire population (where selected cases are missing on Y), and save design matrix.
+# Fit arbitrary probit regression model to entire population (where non-selected cases are missing on Y), and save design matrix.
 fit1 = glm(marcat_4 ~ factor(agecat) + factor(rwrkst) + factor(Race) + factor(census_region) + 
              factor(educat) + factor(inccat) + factor(kidflag), family = binomial(link = "probit"), data = data_all);
 
