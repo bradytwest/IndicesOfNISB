@@ -3,8 +3,10 @@
 #### Using summary statistics (not microdata) as inputs
 #### Authors: Brady West (bwest@umich.edu) and Rebecca Andridge (andridge.1@osu.edu)
 #### Last modified:
-#### 09/25/2019 updated code for NSFG example
+#### 12/15/2020 edited try() check in line 162 to fix warning (changed to tryCatch(), fixed subsequent statements)
+####            added missing >0 in line 228 (check for pos-def matrix)
 #### Previous edits:
+#### 09/25/2019 updated code for NSFG example
 #### 03/21/2019 added a check to see if the residual covariance matrix of (X_d,Y|Z,S=1) is invertible,
 ####            with a redraw of the regression coefficients that make the proxy if it is not
 #### 03/13/2019 added loading of two required packages
@@ -158,19 +160,19 @@ mub_reg_bayes <- function(stats_selected, stats_not_selected, zparams, userphi=N
         
         # Check to see if residual covariance matrix for S=1 will be invertible
         # If not, re-draw the regression coefs from Y|Z,A,S=1 and go back to top of loop (recreate means/variances based on new proxy)
-        check <- try(solve(Smat_s_d), silent=T)
-        if (class(check)=="try-error")
+        check <- tryCatch(solve(Smat_s_d), silent=T)
+        if (class(check)[1]=="try-error")
         {
           print(paste("Residual covariance matrix non-invertible (draw = ",d,")", sep=""))
           print("Redrawing regression coefficients that create the proxy")
           # Redraw betas in Y|Z,A,S==1 (coefficients that create the proxy)
           DRAWS_beta_YZA.ZA_s[,d] <- rmnorm(mean=beta_YZA.ZA_s, varcov=DRAWS_var_Y.ZA_s[d]*mult.mat.za.s)
-        } else if (class(check)=="matrix")
+        } else if (class(check)[1]=="matrix")
         {
           smat_invertible <- 1
         }
       }
-
+      
       ###############
       # DRAWS STEP 2a: Draw residual covariance matrices for (X_d,Y|Z,S)
       ###############
@@ -223,7 +225,7 @@ mub_reg_bayes <- function(stats_selected, stats_not_selected, zparams, userphi=N
       DRAW_covar_XY.Z_ns <- DRAW_var_XY.Z_s[1,2] + g_d * sqrt(vratio_d) * (DRAW_var_X.Z_ns - DRAW_var_XY.Z_s[1,1])
       DRAW_beta_YX.XZ_ns <- DRAW_covar_XY.Z_ns/DRAW_var_X.Z_ns
       DRAW_beta_Y0.XZ_ns <- DRAW_beta_Y0.Z_ns - DRAW_beta_YX.XZ_ns*DRAW_beta_X0.Z_ns
-      if (DRAW_var_Y.Z_ns - DRAW_beta_YX.XZ_ns^2*DRAW_var_X.Z_ns) pd <- 1
+      if (DRAW_var_Y.Z_ns - DRAW_beta_YX.XZ_ns^2*DRAW_var_X.Z_ns > 0) pd <- 1
       #  DRAW_var_Y.Z_ns - DRAW_covar_XY.Z_ns^2/DRAW_var_X.Z_ns   #equivalent check
     }
     ###############
