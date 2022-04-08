@@ -14,21 +14,20 @@ data_path = "https://github.com/bradytwest/IndicesOfNISB/raw/master/fem_comp.csv
 data_all = read.csv(data_path, header = T);
 depvar_col = "WRK12MOS";
 predvar_cols = c("Race","educat","kidflag","inccat","marcat","agecat","rwrkst","census_region");
-predvar_cols_as_factors = predvar_cols;
 sampling_col = "smartphone";
 
 # data_selected includes the dependent variables; data_no_selected does not. 
 # This is the distinguishing characteristic between the two populations.
 # Just comment out the data_no_selected and admin_statistics_no_selected line if data are not available on non-selected cases.
-data_selected = as.dummy(data_all[which(data_all[,sampling_col]==1 & rowSums(is.na(data_all[,c(depvar_col,predvar_cols)]))==0),c(depvar_col,predvar_cols)],transform_cols = predvar_cols_as_factors);
-data_no_selected = as.dummy(data_all[which(data_all[,sampling_col]==0 & rowSums(is.na(data_all[,c(predvar_cols)]))==0),predvar_cols],transform_cols = predvar_cols_as_factors);
+data_selected = 
+  model.matrix(
+    object = as.formula(paste0("~", paste0(c(depvar_col,predvar_cols), collapse="+"))),
+    data = data_all[which(data_all[,sampling_col]==1 & rowSums(is.na(data_all[,c(depvar_col,predvar_cols)]))==0),c(depvar_col,predvar_cols)])[,-1]
 
-admin_statistics_no_selected = list(mean_Z_no_selected = colMeans(data_no_selected), 
-                                    var_Z_no_selected = var(data_no_selected),
-                                    n0 = nrow(data_no_selected));
-admin_statistics_selected = list(mean_YZ_selected = colMeans(data_selected), 
-                                 var_YZ_selected = var(data_selected),
-                                 n1 = nrow(data_selected));
+data_no_selected =
+  model.matrix(
+    data = data_all[which(data_all[,sampling_col]==0 & rowSums(is.na(data_all[,c(predvar_cols)]))==0),predvar_cols], 
+    object = as.formula(paste0("~", paste0(predvar_cols, collapse="+"))))[,-1]
 
 # Set parameters for the nisb_bayes() and nisb() functions.
 random_seed = 1;
