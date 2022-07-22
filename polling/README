@@ -1,5 +1,7 @@
 Code and example for polling paper
 
+example_abc.R is the analysis code that estimates MUBP for the ABC/WP polling data
+
 /data contains the datasets necessary to run the analysis
 
 /SAScode contains the SAS code that created the datasets used in ALL analyses (not just ABC/WP) from original publicly available datasets 
