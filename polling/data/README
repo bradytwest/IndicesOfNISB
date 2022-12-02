@@ -1,1 +1,3 @@
-Data sets used in R code to calculate MUBP for ABC/WP data using various different population data sources
+Data sets used in the R code to calculate MUBP for ABC/WP data using different population data sources.
+
+NOTE: CPS and ANES data sets referenced in the code cannot be freely distributed; please see DataSources.docx for more information about how to obtain and prepare the CPS and ANES data.
